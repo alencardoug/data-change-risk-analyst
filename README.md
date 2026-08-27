@@ -102,7 +102,7 @@ graph TD;
 ## Run it
 
 ```bash
-cp .env.example .env          # fill ANTHROPIC_API_KEY (and LANGSMITH_API_KEY, or set LANGSMITH_TRACING=false)
+cp .env.example .env          # fill OPENAI_API_KEY (and LANGSMITH_API_KEY, or set LANGSMITH_TRACING=false)
 docker compose up -d          # postgres:16
 uv sync
 uv run streamlit run src/dcra/app/streamlit_app.py

@@ -49,11 +49,22 @@ _RECOMMEND_SYS = (
 
 
 def build_chat_model(settings: Settings) -> Any:
-    if settings.llm_provider != "anthropic":  # pragma: no cover - single provider in V0
-        raise ValueError(f"unsupported LLM provider: {settings.llm_provider}")
-    from langchain_anthropic import ChatAnthropic
+    """Provider-swappable chat model. Default: OpenAI. `LLM_PROVIDER=anthropic` still works if
+    `langchain-anthropic` is installed."""
+    # o-series reasoning models reject `temperature`
+    temperature = None if settings.llm_model.startswith(("o1", "o3", "o4")) else 0
 
-    return ChatAnthropic(model=settings.llm_model, temperature=0, max_retries=2)
+    if settings.llm_provider == "openai":
+        from langchain_openai import ChatOpenAI
+
+        return ChatOpenAI(model=settings.llm_model, temperature=temperature, max_retries=2)
+
+    if settings.llm_provider == "anthropic":  # pragma: no cover - optional in V0
+        from langchain_anthropic import ChatAnthropic
+
+        return ChatAnthropic(model=settings.llm_model, temperature=temperature or 0, max_retries=2)
+
+    raise ValueError(f"unsupported LLM provider: {settings.llm_provider}")
 
 
 def interpret(model: Any, raw_text: str) -> StructuredChange:

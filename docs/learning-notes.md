@@ -44,7 +44,8 @@ where in the code · how it's tested.** ("Definition of Learned" from `LEARNING_
 
 ## Structured output
 
-- **What**: `ChatAnthropic(...).with_structured_output(StructuredChange | Recommendation)`.
+- **What**: `build_chat_model(settings).with_structured_output(StructuredChange | Recommendation)`
+  — `ChatOpenAI` by default (`langchain-openai`), provider-swappable (ADR-019).
 - **Why here**: schema-constrained parsing beats ad-hoc text parsing; invalid output is a
   defined failure (`InterpretationError`, or a safe fallback recommendation).
 - **Simpler**: prompt for JSON and `json.loads`.

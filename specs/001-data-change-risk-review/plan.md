@@ -26,7 +26,7 @@ every run. This is architecture hypothesis **A (workflow-first)** from `ARCHITEC
 
 **Primary Dependencies**:
 - `langgraph`, `langgraph-checkpoint-postgres` — graph, state, `interrupt`/`resume`, `PostgresSaver`
-- `langchain-core`, `langchain-anthropic` — `ChatAnthropic`, structured output, tool binding
+- `langchain-core`, `langchain-openai` — `ChatOpenAI`, structured output, tool binding (ADR-019; provider-swappable)
 - `langgraph.prebuilt` (`create_react_agent`) — bounded investigator agent
 - `pydantic` v2 — all domain contracts and LLM structured output
 - `psycopg[binary]` v3 — `analysis_record` persistence (thin repository, parametrized SQL)
@@ -38,9 +38,9 @@ every run. This is architecture hypothesis **A (workflow-first)** from `ARCHITEC
 (`thread_id` per case); one additional table `analysis_record` for the final traceable record
 (FR-017). Schema applied from `persistence/schema.sql` on startup.
 
-**LLM**: default `claude-opus-5` via `langchain-anthropic`; provider/model swappable through
-`config.py` (`LLM_PROVIDER`, `LLM_MODEL` env). `claude-sonnet-5` is a supported cheaper option
-for high-volume local runs — the user's call, not a silent downgrade.
+**LLM**: default `gpt-4o` via `langchain-openai` (ADR-019); provider/model swappable through
+`config.py` (`LLM_PROVIDER`, `LLM_MODEL` env). `gpt-4o-mini` for cheap local runs, `o4-mini` for
+a reasoning model, or `anthropic` + `claude-opus-5` with the `langchain-anthropic` extra.
 
 **Testing**: `pytest`, three tiers (see Testing Strategy). Deterministic tier runs with a
 **fake chat model** and an in-memory checkpointer; LLM-integration tier is opt-in via
@@ -140,7 +140,7 @@ tests/
 
 docker-compose.yml            # postgres:16
 pyproject.toml
-.env.example                  # ANTHROPIC_API_KEY, DATABASE_URL, LANGSMITH_*, LLM_MODEL, DCRA_REVISION_LIMIT
+.env.example                  # OPENAI_API_KEY, DATABASE_URL, LANGSMITH_*, LLM_PROVIDER, LLM_MODEL, DCRA_REVISION_LIMIT
 README.md                     # problem, architecture diagram, LangGraph graph image, demo GIF, decisions
 ```
 
@@ -164,7 +164,7 @@ Recorded in `DECISIONS.md` as ADR-017 (supersedes the "proposed" status of ADR-0
 4. **Streamlit interface.** Single app; no separate frontend/API.
 5. **PostgreSQL from increment 1** (ADR-012) — `PostgresSaver` checkpoints + `analysis_record`.
 6. **LangSmith tracing always on** (ADR-013).
-7. **Default model `claude-opus-5`**, provider/model swappable via `config.py`.
+7. **Default provider OpenAI, model `gpt-4o`** (ADR-019), provider/model swappable via `config.py`.
 
 ## Testing Strategy
 
@@ -183,7 +183,7 @@ structured output, agent finds nothing new, reject, return-for-revision, resume 
 ## Phase 0 — Research
 
 See [research.md](./research.md). Resolves: LangGraph `interrupt`/`resume` + `PostgresSaver`
-lifecycle; fan-out/fan-in with `Annotated` reducers; `ChatAnthropic.with_structured_output`
+lifecycle; fan-out/fan-in with `Annotated` reducers; `ChatOpenAI.with_structured_output`
 behavior and invalid-output handling; bounding `create_react_agent` (tool allow-list +
 `recursion_limit`); LangSmith env wiring; driving an interruptible graph from Streamlit
 `session_state`.

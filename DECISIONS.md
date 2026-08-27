@@ -145,6 +145,18 @@ Decisões:
 - **README reescrito** — de "SDD discovery starter" para README de produto; os seeds/`DISCOVERY_NOTES`/`DECISIONS` continuam como registro de discovery.
 Consequência: 50 testes determinísticos verdes sem API key/DB; 2 testes de repositório DB-gated; `tests/llm_integration/` opt-in. ADR-011/015/016/017 permanecem válidos.
 
+## ADR-019 — Provider LLM: OpenAI (default)
+**Status:** accepted
+
+Contexto: decisão do usuário de usar OpenAI em vez de Anthropic. O `plan.md` já previa "provider/modelo trocável via `config.py`" — o seam de DI (`GraphDeps` + `build_chat_model`) foi construído justamente para isso, então a troca é contida.
+Decisão:
+- **Default `LLM_PROVIDER=openai`, `LLM_MODEL=gpt-4o`** (`langchain-openai` / `ChatOpenAI`). `gpt-4o` suporta bem `.with_structured_output` (JSON schema) e `bind_tools` — os dois usos do projeto. `gpt-4o-mini` para runs locais baratos; `o4-mini` como opção de reasoning (o `build_chat_model` remove `temperature` para modelos `o*`).
+- `langchain-anthropic` sai das dependências; `build_chat_model` mantém o branch `anthropic` (import lazy) para quem instalar o extra e setar `LLM_PROVIDER=anthropic` + `LLM_MODEL=claude-opus-5`.
+- **Substitui** os trechos de ADR-017 (default `claude-opus-5` via `langchain-anthropic`) e o exemplo de ADR-018. LangSmith (ADR-013) permanece — o tracing do LangChain é agnóstico de provider.
+- Chave via env `OPENAI_API_KEY` (o `ChatOpenAI` valida na construção, diferente do `ChatAnthropic`, que é lazy — sem chave, `production_deps` falha cedo com mensagem clara; a UI Streamlit degrada com aviso; os testes determinísticos não tocam o provider).
+Alternativas: manter Anthropic; suportar ambos como extras opcionais sem default (mais setup). 
+Consequências: `contracts/llm-schemas.md`, `plan.md` (Technical Context), `research.md` §4, `README.md`, `.env.example` e `docs/learning-notes.md` atualizados para OpenAI. Nenhuma mudança em spec (é WHAT/WHY, agnóstica), grafo, regras ou testes determinísticos. T061 passa a rodar contra `gpt-4o`.
+
 ## Template
 
 ```text

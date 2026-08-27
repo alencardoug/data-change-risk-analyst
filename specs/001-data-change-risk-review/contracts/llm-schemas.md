@@ -1,8 +1,9 @@
 # Contract — LLM Structured Output
 
 Two model calls use provider-native structured output via
-`ChatAnthropic(...).with_structured_output(<Model>)`. No other step lets the LLM produce
-free-form control data. The risk **category is never produced by the LLM** (Constitution IV).
+`build_chat_model(settings).with_structured_output(<Model>)` (`ChatOpenAI` by default —
+ADR-019). No other step lets the LLM produce free-form control data. The risk **category is
+never produced by the LLM** (Constitution IV).
 
 ---
 
@@ -49,9 +50,10 @@ free-form control data. The risk **category is never produced by the LLM** (Cons
 
 ## Model configuration
 
-`src/dcra/llm/factory.py` → `build_chat_model(config)`:
-- default `model = "claude-opus-5"`, `provider = "anthropic"` (`langchain-anthropic`)
-- overridable via `LLM_PROVIDER` / `LLM_MODEL` env (e.g. `claude-sonnet-5` for cheaper local
-  runs — an explicit user choice, not a default downgrade)
-- temperature 0 for interpretation; low for recommendation
+`src/dcra/llm/factory.py` → `build_chat_model(settings)`:
+- default `provider = "openai"`, `model = "gpt-4o"` (`langchain-openai` / `ChatOpenAI`) — ADR-019
+- overridable via `LLM_PROVIDER` / `LLM_MODEL` env: `gpt-4o-mini` (cheap), `o4-mini` (reasoning;
+  `temperature` is dropped for `o*` models), or `anthropic` + `claude-opus-5` if the
+  `langchain-anthropic` extra is installed
+- `temperature = 0` (non-reasoning models)
 - one place to swap providers, satisfying "provider LLM intercambiável" from the discovery notes

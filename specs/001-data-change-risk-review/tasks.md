@@ -23,6 +23,11 @@ require deterministic tests separated from LLM tests. Unit + e2e run with a fake
 
 ## Phase 1: Setup (Shared Infrastructure)
 
+> Note: T002/T003/T015 originally named `langchain-anthropic` / `ANTHROPIC_API_KEY` /
+> `claude-opus-5`. ADR-019 switched the default provider to **OpenAI** (`langchain-openai`,
+> `OPENAI_API_KEY`, `gpt-4o`); the DI seam made this a config-only change. The `.env.example`,
+> `pyproject.toml`, `config.py` and `factory.py` in the repo reflect OpenAI.
+
 - [X] T001 Create the `src/dcra/` package tree and `tests/{unit,llm_integration,e2e}/` per `plan.md` (empty `__init__.py` where needed)
 - [X] T002 Author `pyproject.toml` with deps (`langgraph`, `langgraph-checkpoint-postgres`, `langchain-core`, `langchain-anthropic`, `pydantic>=2`, `psycopg[binary]`, `streamlit`, `langsmith`) and dev deps (`pytest`, `pytest-mock`); configure `ruff` + `pytest` sections
 - [X] T003 [P] Add `.env.example` with `ANTHROPIC_API_KEY`, `DATABASE_URL`, `LANGSMITH_TRACING`, `LANGSMITH_API_KEY`, `LANGSMITH_PROJECT`, `LLM_MODEL`, `DCRA_REVISION_LIMIT`
@@ -176,7 +181,7 @@ state, note-driven re-entry, why the guard lives in code not the prompt.
 - [X] T058 [P] Write `README.md`: problem in <60s, architecture diagram, the compiled LangGraph graph image, a demo GIF, "3 decisions to defend" (workflow vs agent, deterministic risk, HITL via interrupt/checkpoint), local run steps
 - [X] T059 [P] Write `docs/learning-notes.md`: per concept — what / why here / simpler alternative / trade-off / where in code / how tested (Definition of Learned from `LEARNING_OBJECTIVES.md`)
 - [X] T060 [P] Add `docs/observability.md`: how to read a LangSmith trace for one case (interrupt point, agent tool loop, tokens)
-- [ ] T061 Run `quickstart.md` S1–S8 against a **real model** once (needs ANTHROPIC_API_KEY + Postgres). S1–S8 are already automated as e2e with a fake model; this is the live confirmation.
+- [ ] T061 Run `quickstart.md` S1–S8 against a **real model** once (needs `OPENAI_API_KEY` + Postgres; provider is OpenAI / `gpt-4o` per ADR-019). S1–S8 are already automated as e2e with a fake model; this is the live confirmation.
 - [X] T062 [P] Hardening: `_normalise_rec` repair path tested (`tests/unit/test_recommendation_normalise.py`); disabled-source → UNAVAILABLE and agent-adds-0 already covered by `test_us1_evidence_unavailable`. Remaining: internal-exception → UNAVAILABLE wrapper in a node (deferred).
 - [X] T063 [P] Add `ruff`/`pytest` CI-style Makefile targets (`make test`, `make lint`, `make e2e`, `make llm-test`); ensure `pytest tests/unit tests/e2e` runs with no API key
 - [X] T064 Update `DECISIONS.md` with any implementation-time deviations; confirm ADR-011/015/016/017 still hold

@@ -9,21 +9,22 @@ shapes and `tasks.md` (after `/speckit-tasks`) for build steps.
 
 - Python 3.12, `uv` or `pip`
 - Docker (for PostgreSQL)
-- An Anthropic API key
+- An OpenAI API key
 - (Optional) a LangSmith API key — tracing is on by default; without a key set
   `LANGSMITH_TRACING=false`
 
 ## Setup
 
 ```bash
-cp .env.example .env      # fill ANTHROPIC_API_KEY, LANGSMITH_API_KEY
+cp .env.example .env      # fill OPENAI_API_KEY, LANGSMITH_API_KEY
 docker compose up -d       # postgres:16 on localhost:5432
 uv sync                    # or: pip install -e ".[dev]"
 # checkpoint tables + analysis_record are created on first app start
 ```
 
-`.env` keys: `ANTHROPIC_API_KEY`, `DATABASE_URL`, `LANGSMITH_TRACING`, `LANGSMITH_API_KEY`,
-`LANGSMITH_PROJECT=dcra`, `LLM_MODEL` (default `claude-opus-5`), `DCRA_REVISION_LIMIT` (default 2).
+`.env` keys: `OPENAI_API_KEY`, `DATABASE_URL`, `LANGSMITH_TRACING`, `LANGSMITH_API_KEY`,
+`LANGSMITH_PROJECT=dcra`, `LLM_PROVIDER` (default `openai`), `LLM_MODEL` (default `gpt-4o`),
+`DCRA_REVISION_LIMIT` (default 2).
 
 ## Run
 

@@ -48,4 +48,4 @@
 - Resolved in `/speckit-plan` (2026-08-27, ADR-017, see `plan.md`): parallel evidence fan-out +
   `merge_evidence` reducer; MCP deferred to V1; investigator agent bounded (tool allow-list +
   `recursion_limit`, gap-triggered); PostgreSQL + `PostgresSaver`; Streamlit interface; default
-  model `claude-opus-5` (swappable); 3-tier test strategy.
+  model `gpt-4o` (OpenAI default per ADR-019; swappable); 3-tier test strategy.

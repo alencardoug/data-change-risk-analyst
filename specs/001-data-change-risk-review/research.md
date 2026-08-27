@@ -66,7 +66,7 @@ testable.
 
 ---
 
-## 4. Structured output with `ChatAnthropic`
+## 4. Structured output with `ChatOpenAI` (provider-swappable)
 
 **Decision**: `build_chat_model(config).with_structured_output(StructuredChange)` for
 interpretation and `...with_structured_output(Recommendation)` for the recommendation draft.
@@ -79,7 +79,7 @@ invalid" failure case in the test seed and the "interpretation fails validation"
 
 **Alternatives considered**:
 - Manual JSON prompt + `json.loads` — no schema guarantees, more parsing failure modes.
-- Anthropic tool-use "extraction" pattern by hand — `with_structured_output` already wraps this.
+- provider tool-use "extraction" pattern by hand — `with_structured_output` already wraps this.
 - `PydanticOutputParser` on a plain string response — weaker than provider-native structured
   output.
 
