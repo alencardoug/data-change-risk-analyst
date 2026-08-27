@@ -30,14 +30,14 @@ O projeto deve favorecer um caso com dados estruturados e pouco esforço de simu
 Confirmado na sessão de discovery (2026-08-27). A revisão humana é um estado do grafo com `interrupt`/`resume`, não um botão pós-resposta. Ver ADR-010.
 
 ## ADR-006 — Workflow-first
-**Status:** proposed
+**Status:** accepted
 
-LangGraph como orquestrador e agent LangChain como investigador limitado. Validar durante plan.
+Confirmado no `/speckit-plan` (2026-08-27). LangGraph orquestra; agente LangChain é investigador read-only limitado, acionado só por lacuna de evidência. Ver ADR-017.
 
 ## ADR-007 — MCP pós-V0
-**Status:** proposed
+**Status:** accepted
 
-Começar com tools locais e integrar MCP depois. Validar conforme objetivo educacional.
+Confirmado no `/speckit-plan` (2026-08-27). V0 usa tools locais `@tool`; MCP entra como incremento V1 expondo uma tool de evidência via servidor local, com antes/depois visível. Ver ADR-017.
 
 ## ADR-008 — Data Change Risk Analyst
 **Status:** accepted
@@ -66,7 +66,7 @@ Consequências: bateria de testes determinísticos sem LLM; o LLM não define a 
 Contexto: aprender loop de LangGraph junto com interrupt/resume.
 Decisão: na revisão humana há três saídas — **aprovar**, **rejeitar**, **pedir revisão**. "Pedir revisão" carrega uma nota em texto livre, o grafo retoma e roteia por **aresta condicional de volta** ao nó de recomendação, que regenera; então volta a pausar. Guarda de terminação: `revision_count` máx. 2 (configurável); atingido o limite, "pedir revisão" deixa de ser oferecida. Histórico de notas e versões acumulado em `revision_history` no estado.
 Alternativas: só aprovar/rejeitar; aprovar/editar-inline/rejeitar sem regeneração.
-Consequências: +1 aresta condicional, +campo de estado, +guarda, +~3 testes (revisão aceita, 2ª revisão, limite). A definir em clarify: a nota realimenta só `recomendar` ou também re-dispara `avaliar risco`/agente investigador (recomendação: só `recomendar`, salvo marcação explícita de "falta evidência").
+Consequências: +1 aresta condicional, +campo de estado, +guarda, +~3 testes (revisão aceita, 2ª revisão, limite). O alvo do loop foi decidido em `/speckit-clarify` — ver ADR-016.
 
 ## ADR-012 — PostgreSQL desde o incremento 1
 **Status:** accepted
@@ -91,6 +91,71 @@ Contexto: Gate 0 do SDD_WORKFLOW.
 Decisão: constituição gerada em `.specify/memory/constitution.md`, v1.0.0 (2026-08-27), com 6 princípios condensados de `CONSTITUTION_SEED.md` (10→6); o princípio "Specification outranks scaffold" virou a hierarquia de autoridade na seção Governance. Stack não é fixada na constituição — fica nos ADRs e no plan.
 Alternativas: manter os 10 princípios do seed (redundância); constituição com stack embutida (perde poder de governar).
 Consequências: emendas exigem novo ADR `accepted` + bump semântico; conformidade checada no gate `analyze`.
+
+## ADR-015 — Gate de revisão por nível de risco + ativo desconhecido
+**Status:** accepted
+
+Contexto: clarificações levantadas ao escrever a spec (`specs/001-data-change-risk-review/spec.md`, FR-019/FR-020).
+Decisão:
+- **FR-019** — risco LOW é finalizado automaticamente, sem revisão humana, com recomendação/fatores/evidência gravados e o registro marcado como "auto-finalizado sem revisão". MEDIUM e HIGH exigem revisão humana. Isso cria uma aresta condicional determinística `risco → finalizar | risco → revisar`.
+- **FR-020** — ativo afetado ausente da fonte de evidência ⇒ risco HIGH com fator explícito "asset not found in evidence source", segue para revisão humana; nada sobre o ativo é inventado.
+Alternativas consideradas: revisão obrigatória para toda mudança (mais simples, mas sem o branch de roteamento); LOW auto-finaliza só com evidência completa (mais defensável, roteamento mais complexo); ativo desconhecido → interromper / pedir cadastro (beco sem saída ou +escopo).
+Consequências: a demo precisa de um caso LOW que "pula" o humano (bom para SC-002); o sistema grava registro final sozinho em parte dos casos — aceitável porque é controle determinístico sobre baixo impacto (Constituição II/V).
+
+## ADR-016 — Resultados do /speckit-clarify (sessão 2026-08-27)
+**Status:** accepted
+
+Contexto: Gate 2, quatro perguntas de esclarecimento sobre `specs/001-data-change-risk-review/spec.md`.
+Decisões:
+- **Operações do V0 (FR-002)** — o sistema reconhece exatamente `drop column`, `alter column` (tipo/nullability) e `add index`. Perfis de risco distintos ⇒ demo com caminhos naturalmente diferentes; regras determinísticas testáveis.
+- **Fonte de evidência indisponível (FR-024)** — em MEDIUM/HIGH, o fluxo segue até a revisão humana com a lacuna sinalizada e a confiança marcada como reduzida; não bloqueia aprovação automaticamente.
+- **Loop de revisão e risco (FR-014 / FR-025)** — nota sem marcação re-dirige só a recomendação, mantendo o risco. Nota marcada como "evidence missing" re-roda coleta de evidência + avaliação de risco (a categoria pode mudar) antes de nova recomendação. Ambas contam para o limite de revisões (default 2). Substitui a premissa "só recomendar" do ADR-011.
+- **Gatilho da investigação adicional (FR-010)** — roda apenas quando há lacuna de evidência material à recomendação; nunca por nível de risco. (Usuário sem preferência; default recomendado adotado, revisável no plan.)
+Alternativas consideradas e rejeitadas: só `drop column` (demo fraca); texto livre de schema (interpretação/testes difíceis); bloquear quando evidência falta (beco sem saída); investigar sempre em HIGH (autonomia sem necessidade).
+Consequências: `alter column` e `add index` entram no contrato de interpretação e nas regras de risco; o loop agora tem dois alvos possíveis (recomendação vs avaliação de risco), exigindo um flag "evidence missing" no estado e testes para os dois caminhos; FR-008 (reprodutibilidade) passa a valer por passo de avaliação, não por caso.
+
+## ADR-017 — Plano de implementação do V0
+**Status:** accepted
+
+Contexto: Gate 4 (`/speckit-plan`), 4 decisões de arquitetura respondidas pelo usuário.
+Decisões:
+- **Hipótese A (workflow-first)** — LangGraph orquestra estado/roteamento/HITL/checkpoint; LangChain fornece chat model, structured output, tools de evidência e o agente investigador (read-only, `create_react_agent`, tool-list restrita, `recursion_limit`, acionado só quando `evidence_gap`).
+- **Coleta de evidência paralela** — fan-out de `collect_asset` / `collect_deps` / `collect_usage` a partir de `interpret`, fan-in em `assess_risk`; `GraphState.evidence` com reducer `merge_evidence` (concat + dedupe por `(kind,key)` + ordenação estável) para preservar reprodutibilidade (FR-008). Ensina fan-out/fan-in + reducers.
+- **MCP fora do V0** (confirma ADR-007).
+- **Interface Streamlit** — app único mostrando etapas → evidências → risco+fatores → recomendação → gate de revisão → resume; README com diagrama + screenshots/GIF para quem não roda.
+- **PostgreSQL desde já** (ADR-012) — `PostgresSaver` para checkpoints + tabela `analysis_record` para o registro final (repositório psycopg fino).
+- **LangSmith sempre ligado** (ADR-013), via env.
+- **Modelo default `claude-opus-5`** via `langchain-anthropic`, provider/modelo troc��vel em `config.py` (`claude-sonnet-5` como opção mais barata, escolha do usuário).
+- **Testes em 3 camadas** — unit (regras/roteamento/reducers/estado/schema/repo, fake model), llm_integration (opt-in `RUN_LLM_TESTS=1`), e2e (grafo inteiro com fake model + checkpointer in-memory, cobrindo S1–S8 do quickstart).
+Constitution Check: PASS, sem violações (Complexity Tracking vazio). Paralelização justificada por independência real + objetivo de aprendizado explícito.
+Artefatos: `specs/001-data-change-risk-review/plan.md`, `research.md`, `data-model.md`, `contracts/{evidence-tools,llm-schemas,graph-state}.md`, `quickstart.md`.
+Consequências: estrutura `src/dcra/` (core importável) + `app/streamlit_app.py` fino; docker-compose com postgres; `.env.example` com as chaves; próximo gate `/speckit-tasks`.
+
+## ADR-018 — Desvios de implementação (V0 entregue)
+**Status:** accepted
+
+Contexto: `/speckit-implement` das Fases 1–6. Ajustes feitos durante a implementação, todos compatíveis com plan/spec.
+Decisões:
+- **Versões reais** — `uv` provisiona Python 3.13; `langchain-core` 1.x (o plan estimou 0.3, com nota de "conferir na implementação"). `langgraph` + `langgraph-checkpoint-postgres` atuais. Sem impacto de contrato.
+- **Seam de DI** (`GraphDeps`) em vez de o grafo chamar `llm/factory` direto — permite testes determinísticos sem LLM nem banco (fake model + `MemorySaver`). `production_deps()` faz a fiação real.
+- **`InterpretationError` propaga para fora do grafo** e é capturada em `run()` (em vez de uma aresta condicional de erro) — o map de aresta condicional do langgraph desta versão não aceita valor-lista para fan-out. Resultado idêntico: sem registro, erro exposto (FR-002).
+- **Nó `reassess_gate` + flag `force_investigation`** — necessários para o modo "evidence missing" do loop (ADR-016): re-fan-out dos coletores e forçar o investigador a rodar naquele passo. Não estavam nomeados no `contracts/graph-state.md`, mas realizam o comportamento ali especificado.
+- **`route_after_review` valida a `ReviewAction` em `resume()`** — nota de RETURN em branco levanta `ValidationError` antes de tocar o estado do grafo (FR-016), sem consumir ciclo.
+- **Serializer de checkpoint com allowlist** (`persistence/serde.py`) — registra os value objects do domínio para o msgpack do langgraph (silencia o warning "unregistered type" e é à prova de futuro).
+- **README reescrito** — de "SDD discovery starter" para README de produto; os seeds/`DISCOVERY_NOTES`/`DECISIONS` continuam como registro de discovery.
+Consequência: 50 testes determinísticos verdes sem API key/DB; 2 testes de repositório DB-gated; `tests/llm_integration/` opt-in. ADR-011/015/016/017 permanecem válidos.
+
+## ADR-019 — Provider LLM: OpenAI (default)
+**Status:** accepted
+
+Contexto: decisão do usuário de usar OpenAI em vez de Anthropic. O `plan.md` já previa "provider/modelo trocável via `config.py`" — o seam de DI (`GraphDeps` + `build_chat_model`) foi construído justamente para isso, então a troca é contida.
+Decisão:
+- **Default `LLM_PROVIDER=openai`, `LLM_MODEL=gpt-4o`** (`langchain-openai` / `ChatOpenAI`). `gpt-4o` suporta bem `.with_structured_output` (JSON schema) e `bind_tools` — os dois usos do projeto. `gpt-4o-mini` para runs locais baratos; `o4-mini` como opção de reasoning (o `build_chat_model` remove `temperature` para modelos `o*`).
+- `langchain-anthropic` sai das dependências; `build_chat_model` mantém o branch `anthropic` (import lazy) para quem instalar o extra e setar `LLM_PROVIDER=anthropic` + `LLM_MODEL=claude-opus-5`.
+- **Substitui** os trechos de ADR-017 (default `claude-opus-5` via `langchain-anthropic`) e o exemplo de ADR-018. LangSmith (ADR-013) permanece — o tracing do LangChain é agnóstico de provider.
+- Chave via env `OPENAI_API_KEY` (o `ChatOpenAI` valida na construção, diferente do `ChatAnthropic`, que é lazy — sem chave, `production_deps` falha cedo com mensagem clara; a UI Streamlit degrada com aviso; os testes determinísticos não tocam o provider).
+Alternativas: manter Anthropic; suportar ambos como extras opcionais sem default (mais setup). 
+Consequências: `contracts/llm-schemas.md`, `plan.md` (Technical Context), `research.md` §4, `README.md`, `.env.example` e `docs/learning-notes.md` atualizados para OpenAI. Nenhuma mudança em spec (é WHAT/WHY, agnóstica), grafo, regras ou testes determinísticos. T061 passa a rodar contra `gpt-4o`.
 
 ## Template
 
