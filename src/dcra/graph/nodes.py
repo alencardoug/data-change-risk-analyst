@@ -2,12 +2,33 @@
 
 from __future__ import annotations
 
+from langgraph.types import interrupt
+
 from dcra.domain.enums import CaseStatus, Outcome, ReviewDecision, RiskCategory
-from dcra.domain.models import AnalysisRecord, EvidenceItem, RiskAssessment
+from dcra.domain.models import AnalysisRecord, EvidenceItem, ReviewAction, RiskAssessment
 from dcra.evidence.tools import read_asset_metadata, read_dependencies, read_downstream_usage
 from dcra.graph.deps import GraphDeps
 from dcra.graph.state import GraphState
 from dcra.rules import risk as risk_rules
+
+
+def review_payload(state: GraphState, limit: int = 2) -> dict:
+    """What the UI renders at the human-review gate. Contract: graph-state.md."""
+    risk = state["risk"]
+    rec = state["recommendations"][-1]
+    remaining = max(0, limit - state.get("revision_count", 0))
+    options = ["APPROVE", "REJECT"] + (["RETURN"] if remaining > 0 else [])
+    return {
+        "risk": {
+            "category": risk.category.value,
+            "factors": [f.model_dump(mode="json") for f in risk.factors],
+        },
+        "recommendation": rec.model_dump(mode="json"),
+        "evidence": [e.model_dump(mode="json") for e in state.get("evidence", [])],
+        "revision_count": state.get("revision_count", 0),
+        "revisions_remaining": remaining,
+        "options": options,
+    }
 
 
 def make_nodes(deps: GraphDeps) -> dict:
@@ -42,36 +63,45 @@ def make_nodes(deps: GraphDeps) -> dict:
     def assess_risk(state: GraphState) -> dict:
         sc = state["structured_change"]
         evidence = state.get("evidence", [])
-        assessment = risk_rules.assess(sc, evidence)
-        gap = risk_rules.has_evidence_gap(sc, evidence)
+        pass_number = len(state.get("risk_history", [])) + 1
+        assessment = risk_rules.assess(sc, evidence).model_copy(update={"pass_number": pass_number})
+        gap = risk_rules.has_evidence_gap(sc, evidence) or state.get("force_investigation", False)
         return {
             "risk": assessment,
             "risk_history": [assessment],
             "evidence_gap": gap,
             "status": CaseStatus.ASSESSING_RISK,
             "step_log": [
-                f"assess_risk: {assessment.category.value} "
+                f"assess_risk: pass {pass_number} → {assessment.category.value} "
                 f"({', '.join(f.code for f in assessment.factors)})"
                 + ("; evidence gap" if gap else "")
             ],
         }
 
+    def reassess_gate(state: GraphState) -> dict:
+        # entered only on a RETURN marked "evidence missing": force the investigator to run
+        return {
+            "force_investigation": True,
+            "status": CaseStatus.COLLECTING_EVIDENCE,
+            "step_log": ["reassess: re-collecting evidence after 'evidence missing' feedback"],
+        }
+
     def investigate(state: GraphState) -> dict:
         sc = state["structured_change"]
-        prior = state.get("risk")
         found: list[EvidenceItem] = deps.investigate_fn(
             change=sc, gap_note="dependency/usage evidence was unavailable"
         )
         merged = state.get("evidence", []) + found
-        reassessed: RiskAssessment = risk_rules.assess(sc, merged)
-        reassessed = reassessed.model_copy(
-            update={"pass_number": (prior.pass_number if prior else 1) + 1}
+        pass_number = len(state.get("risk_history", [])) + 1
+        reassessed: RiskAssessment = risk_rules.assess(sc, merged).model_copy(
+            update={"pass_number": pass_number}
         )
         return {
             "evidence": found,
             "risk": reassessed,
             "risk_history": [reassessed],
             "evidence_gap": False,
+            "force_investigation": False,
             "status": CaseStatus.INVESTIGATING,
             "step_log": [
                 f"investigate: agent added {len(found)} item(s); "
@@ -98,6 +128,23 @@ def make_nodes(deps: GraphDeps) -> dict:
                 f"recommend: v{rec.version} {rec.disposition.value} ({rec.confidence.value})"
             ],
         }
+
+    def human_review(state: GraphState) -> dict:
+        payload = review_payload(state, limit=deps.revision_limit)
+        # execution pauses here; the resume value becomes `raw`
+        raw = interrupt(payload)
+        action = raw if isinstance(raw, ReviewAction) else ReviewAction.model_validate(raw)
+        out: dict = {
+            "review_actions": [action],
+            "status": CaseStatus.AWAITING_REVIEW,
+            "step_log": [
+                f"human_review: {action.decision.value}"
+                + (" (evidence missing)" if action.evidence_missing else "")
+            ],
+        }
+        if action.decision == ReviewDecision.RETURN:
+            out["revision_count"] = state.get("revision_count", 0) + 1
+        return out
 
     def finalize(state: GraphState) -> dict:
         recs = state.get("recommendations", [])
@@ -134,8 +181,10 @@ def make_nodes(deps: GraphDeps) -> dict:
         "collect_deps": collect_deps,
         "collect_usage": collect_usage,
         "assess_risk": assess_risk,
+        "reassess_gate": reassess_gate,
         "investigate": investigate,
         "recommend": recommend,
+        "human_review": human_review,
         "finalize": finalize,
     }
 
@@ -145,8 +194,21 @@ def route_after_assess(state: GraphState) -> str:
 
 
 def route_after_recommend(state: GraphState) -> str:
-    """US1: LOW auto-finalizes; anything else ends here (US2 repoints to human_review)."""
+    """LOW auto-finalizes; MEDIUM/HIGH go to the human review gate (FR-019)."""
     risk = state.get("risk")
     if risk and risk.category == RiskCategory.LOW:
         return "finalize"
-    return "stop"
+    return "review"
+
+
+def route_after_review(state: GraphState, limit: int = 2) -> str:
+    """APPROVE/REJECT -> finalize. RETURN -> re-recommend, or re-assess when the note is
+    marked 'evidence missing'. The revision guard: once ``revision_count`` (already incremented
+    by ``human_review``) exceeds the limit, fall through to finalize (the UI hides RETURN before
+    that, so this is a safety net)."""
+    actions = state.get("review_actions", [])
+    if not actions or actions[-1].decision != ReviewDecision.RETURN:
+        return "finalize"
+    if state.get("revision_count", 0) > limit:
+        return "finalize"
+    return "reassess" if actions[-1].evidence_missing else "revise"

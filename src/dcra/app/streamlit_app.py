@@ -14,8 +14,16 @@ import streamlit as st
 from dcra.config import Settings
 from dcra.domain.models import ChangeRequest, InterpretationError
 from dcra.evidence.dataset import default_dataset
-from dcra.graph.build import build_graph, get_state, run
+from dcra.graph.build import (
+    build_graph,
+    get_state,
+    is_awaiting_review,
+    pending_interrupt,
+    resume,
+    run,
+)
 from dcra.graph.deps import GraphDeps, production_deps
+from dcra.graph.nodes import review_payload
 
 st.set_page_config(page_title="Data Change Risk Analyst", layout="centered")
 st.title("Data Change Risk Analyst")
@@ -88,16 +96,55 @@ if state:
             if r.mitigations:
                 st.write("Mitigations:", ", ".join(r.mitigations))
 
+        thread_id = st.session_state.get("thread_id")
+        payload = pending_interrupt(state)
+        if payload is None and thread_id and not state.get("outcome"):
+            try:
+                if is_awaiting_review(_graph(), thread_id):
+                    payload = review_payload(state)
+            except Exception:
+                payload = None
+
         if state.get("outcome"):
-            how = "auto-finalized, no human review" if not state.get("review_actions") else "human decision"
+            actions = state.get("review_actions", [])
+            how = "auto-finalized, no human review" if not actions else (
+                f"human decision by {actions[-1].reviewer}"
+            )
             st.success(f"Final record: {state['outcome'].value} ({how})")
-        elif risk and risk.category.value != "LOW":
-            st.info("MEDIUM/HIGH risk — this case would pause here for human review (User Story 2).")
+            if actions:
+                st.caption("AI recommendation and human decision are recorded as separate fields.")
+
+        elif payload is not None:
+            st.divider()
+            st.subheader("Human review")
+            st.caption(
+                f"Risk {payload['risk']['category']} · revisions left "
+                f"{payload['revisions_remaining']}"
+            )
+            reviewer = st.text_input("Reviewer name", value="data.owner", key="rv")
+            col_a, col_b, col_c = st.columns(3)
+            decided = None
+            if col_a.button("Approve", use_container_width=True):
+                decided = {"decision": "APPROVE", "reviewer": reviewer}
+            if col_b.button("Reject", use_container_width=True):
+                decided = {"decision": "REJECT", "reviewer": reviewer}
+            if "RETURN" in payload["options"]:
+                note = st.text_area("Return with a note", key="rn")
+                miss = st.checkbox("Mark: evidence missing (re-runs risk assessment)")
+                if col_c.button("Return for revision", use_container_width=True):
+                    decided = {
+                        "decision": "RETURN", "reviewer": reviewer,
+                        "note": note, "evidence_missing": miss,
+                    }
+            if decided is not None:
+                st.session_state["state"] = resume(_graph(), thread_id, decided)
+                st.rerun()
 
 with st.expander("Reopen a case by id"):
     tid = st.text_input("thread_id")
     if st.button("Reopen") and tid:
         try:
+            st.session_state["thread_id"] = tid
             st.session_state["state"] = get_state(_graph(), tid)
             st.rerun()
         except Exception as exc:

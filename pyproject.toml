@@ -36,6 +36,9 @@ testpaths = ["tests"]
 markers = [
     "llm: tests that call a real LLM (opt-in via RUN_LLM_TESTS=1)",
 ]
+filterwarnings = [
+    "ignore:Deserializing unregistered type:UserWarning",
+]
 
 [tool.ruff]
 line-length = 110

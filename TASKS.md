@@ -30,5 +30,5 @@
 ## Gate de implementação
 
 - [x] **D-14** Confirmar que não existe implementação antecipada servindo de requisito implícito. → scaffold estava vazio; código nasceu do `tasks.md`.
-- [~] **D-15** Executar `/speckit-implement`. → **MVP entregue**: Fases 1–3 (T001–T039), 34 testes passando (2 DB-gated skip), ruff limpo. US2 (T040–T048, T065), US3 (T049–T057, T066), Polish (T058–T064) pendentes.
+- [~] **D-15** Executar `/speckit-implement`. → **US1 + US2 + US3 entregues** (T001–T057, T065, T066): 47 testes passando (fake model + MemorySaver, sem API key/DB), 2 DB-gated skip, ruff limpo, serde de checkpoint com allowlist. Loop de revisão (2 modos) + guarda validados end-to-end. **Polish (T058–T064) pendente**.
 - [ ] **D-16** Após implementação, executar `/speckit-converge`.

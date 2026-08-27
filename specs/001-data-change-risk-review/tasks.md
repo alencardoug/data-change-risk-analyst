@@ -116,19 +116,19 @@ reduced-confidence cases reaching the gate (T065).
 
 ### Tests for User Story 2
 
-- [ ] T040 [P] [US2] e2e `tests/e2e/test_us2_approve_reject.py` (S2): interrupt payload has risk/recommendation/evidence/options; resume APPROVE → `outcome=APPROVED`, `reviewed=True`; resume REJECT → `REJECTED`; AI vs human fields distinct in the record
-- [ ] T041 [P] [US2] e2e `tests/e2e/test_us2_resume_after_restart.py` (S8): run to interrupt, drop the in-process graph, rebuild from the same checkpointer + `thread_id`, resume, finalize
-- [ ] T042 [P] [US2] Unit test `tests/unit/test_state_transitions.py`: `CaseStatus` progression INTERPRETING→…→AWAITING_REVIEW→FINALIZED; no finalize before a review action for MEDIUM/HIGH
-- [ ] T065 [P] [US2] e2e `tests/e2e/test_us2_high_paths_reach_gate.py` (closes analyze finding G1 — FR-020, FR-024, SC-009): with US2 wiring in place, assert (a) **S5** unknown-asset case → category HIGH, `ASSET_NOT_FOUND` factor present **in the interrupt payload**, `human_review` reached, no `AnalysisRecord` before a decision; (b) **S4** `usage` source disabled → `human_review` reached with `recommendation.confidence == REDUCED` and the `UNAVAILABLE` evidence items visible in the payload; approval is offered (not auto-blocked)
+- [X] T040 [P] [US2] e2e `tests/e2e/test_us2_approve_reject.py` (S2): interrupt payload has risk/recommendation/evidence/options; resume APPROVE → `outcome=APPROVED`, `reviewed=True`; resume REJECT → `REJECTED`; AI vs human fields distinct in the record
+- [X] T041 [P] [US2] e2e `tests/e2e/test_us2_resume_after_restart.py` (S8): run to interrupt, drop the in-process graph, rebuild from the same checkpointer + `thread_id`, resume, finalize
+- [X] T042 [P] [US2] Unit test `tests/unit/test_state_transitions.py`: `CaseStatus` progression INTERPRETING→…→AWAITING_REVIEW→FINALIZED; no finalize before a review action for MEDIUM/HIGH
+- [X] T065 [P] [US2] e2e `tests/e2e/test_us2_high_paths_reach_gate.py` (closes analyze finding G1 — FR-020, FR-024, SC-009): with US2 wiring in place, assert (a) **S5** unknown-asset case → category HIGH, `ASSET_NOT_FOUND` factor present **in the interrupt payload**, `human_review` reached, no `AnalysisRecord` before a decision; (b) **S4** `usage` source disabled → `human_review` reached with `recommendation.confidence == REDUCED` and the `UNAVAILABLE` evidence items visible in the payload; approval is offered (not auto-blocked)
 
 ### Implementation for User Story 2
 
-- [ ] T043 [US2] Implement `human_review` node in `src/dcra/graph/nodes.py`: build the interrupt payload (`contracts/graph-state.md` §Interrupt payload); on resume, append `ReviewAction`, set `step_log`/`status` (depends on T036)
-- [ ] T044 [US2] Extend `routing.py` with `route_after_review`: APPROVE/REJECT → `finalize` (depends on T043)
-- [ ] T045 [US2] Extend `finalize` node for APPROVED/REJECTED outcomes, `reviewed=True`, `final_recommendation_version` set from the standing recommendation (depends on T034, T043)
-- [ ] T046 [US2] Update `route_after_recommend` (non-LOW → `human_review` instead of END) and rewire edges in `build.py` (depends on T035, T036, T043)
-- [ ] T047 [US2] Streamlit review gate in `app/streamlit_app.py`: render interrupt payload, Approve / Reject buttons, reviewer name field; call `build.resume`; then show the final record with AI/human sections separated (depends on T038, T043)
-- [ ] T048 [US2] Streamlit "Reopen case": take a `thread_id`, resume from checkpoint, land on the gate or final record (depends on T047)
+- [X] T043 [US2] Implement `human_review` node in `src/dcra/graph/nodes.py`: build the interrupt payload (`contracts/graph-state.md` §Interrupt payload); on resume, append `ReviewAction`, set `step_log`/`status` (depends on T036)
+- [X] T044 [US2] Extend `routing.py` with `route_after_review`: APPROVE/REJECT → `finalize` (depends on T043)
+- [X] T045 [US2] Extend `finalize` node for APPROVED/REJECTED outcomes, `reviewed=True`, `final_recommendation_version` set from the standing recommendation (depends on T034, T043)
+- [X] T046 [US2] Update `route_after_recommend` (non-LOW → `human_review` instead of END) and rewire edges in `build.py` (depends on T035, T036, T043)
+- [X] T047 [US2] Streamlit review gate in `app/streamlit_app.py`: render interrupt payload, Approve / Reject buttons, reviewer name field; call `build.resume`; then show the final record with AI/human sections separated (depends on T038, T043)
+- [X] T048 [US2] Streamlit "Reopen case": take a `thread_id`, resume from checkpoint, land on the gate or final record (depends on T047)
 
 **Checkpoint**: US1 + US2 both independently testable; approve/reject + restart-safe resume green.
 
@@ -150,19 +150,19 @@ unchanged, new recommendation version), empty-note variant (no cycle consumed �
 
 ### Tests for User Story 3
 
-- [ ] T049 [P] [US3] e2e `tests/e2e/test_us3_evidence_missing_reassess.py` (S3): RETURN + `evidence_missing=True` → re-collect + re-assess (`pass_number=2`, category may change) → `Recommendation.version=2` → APPROVE; `revision_count` incremented
-- [ ] T050 [P] [US3] e2e `tests/e2e/test_us3_unmarked_return.py`: RETURN + `evidence_missing=False` → only `recommend` re-runs; `risk` identical; `recommendations` has 2 versions
-- [ ] T051 [P] [US3] e2e `tests/e2e/test_us3_revision_limit.py` (S6): after 2 returns, interrupt payload `options` excludes RETURN; `revisions_remaining==0`; ≤ limit+1 entries to `human_review`
-- [ ] T052 [P] [US3] Unit test `tests/unit/test_routing.py::test_route_after_review_return`: both RETURN modes route correctly and increment `revision_count`; limit reached → no RETURN target ever seen
-- [ ] T066 [P] [US3] e2e `tests/e2e/test_us3_empty_note.py` (closes analyze finding G2 — FR-016): RETURN with a blank / whitespace-only note → system re-presents the review gate asking for specifics; `revision_count` **unchanged**; no new `Recommendation` version created; a subsequent substantive RETURN then works normally
+- [X] T049 [P] [US3] e2e `tests/e2e/test_us3_evidence_missing_reassess.py` (S3): RETURN + `evidence_missing=True` → re-collect + re-assess (`pass_number=2`, category may change) → `Recommendation.version=2` → APPROVE; `revision_count` incremented
+- [X] T050 [P] [US3] e2e `tests/e2e/test_us3_unmarked_return.py`: RETURN + `evidence_missing=False` → only `recommend` re-runs; `risk` identical; `recommendations` has 2 versions
+- [X] T051 [P] [US3] e2e `tests/e2e/test_us3_revision_limit.py` (S6): after 2 returns, interrupt payload `options` excludes RETURN; `revisions_remaining==0`; ≤ limit+1 entries to `human_review`
+- [X] T052 [P] [US3] Unit test `tests/unit/test_routing.py::test_route_after_review_return`: both RETURN modes route correctly and increment `revision_count`; limit reached → no RETURN target ever seen
+- [X] T066 [P] [US3] e2e `tests/e2e/test_us3_empty_note.py` (closes analyze finding G2 — FR-016): RETURN with a blank / whitespace-only note → system re-presents the review gate asking for specifics; `revision_count` **unchanged**; no new `Recommendation` version created; a subsequent substantive RETURN then works normally
 
 ### Implementation for User Story 3
 
-- [ ] T053 [US3] Extend `human_review` payload: compute `revisions_remaining`, include/exclude `RETURN` in `options`; accept `ReviewAction.note` + `evidence_missing` on resume; enforce substantive-note rule (FR-016) without consuming a cycle — a blank or whitespace-only note re-presents the gate asking for specifics and does **not** increment `revision_count` or create a recommendation version (verified by T066) (depends on T043, T009)
-- [ ] T054 [US3] Extend `route_after_review`: RETURN & !evidence_missing & under limit → `recommend`; RETURN & evidence_missing & under limit → the 3 collectors; increment `revision_count` in the router (depends on T044)
-- [ ] T055 [US3] Rewire `build.py` edges for the revision loop (review → collectors, review → recommend); confirm `recursion_limit` on invoke accommodates limit+1 review cycles (depends on T046, T054)
-- [ ] T056 [US3] `assess_risk` / `recommend`: honor `pass_number` increment and `prompted_by_note` on re-runs; `risk_history` gains an entry per re-assessment (depends on T030, T033)
-- [ ] T057 [US3] Streamlit: add "Return for revision" with a note box + "evidence missing" checkbox (hidden when `revisions_remaining==0`); show revision history (notes + recommendation versions + risk per pass) in the final record (depends on T047)
+- [X] T053 [US3] Extend `human_review` payload: compute `revisions_remaining`, include/exclude `RETURN` in `options`; accept `ReviewAction.note` + `evidence_missing` on resume; enforce substantive-note rule (FR-016) without consuming a cycle — a blank or whitespace-only note re-presents the gate asking for specifics and does **not** increment `revision_count` or create a recommendation version (verified by T066) (depends on T043, T009)
+- [X] T054 [US3] Extend `route_after_review`: RETURN & !evidence_missing & under limit → `recommend`; RETURN & evidence_missing & under limit → the 3 collectors; increment `revision_count` in the router (depends on T044)
+- [X] T055 [US3] Rewire `build.py` edges for the revision loop (review → collectors, review → recommend); confirm `recursion_limit` on invoke accommodates limit+1 review cycles (depends on T046, T054)
+- [X] T056 [US3] `assess_risk` / `recommend`: honor `pass_number` increment and `prompted_by_note` on re-runs; `risk_history` gains an entry per re-assessment (depends on T030, T033)
+- [X] T057 [US3] Streamlit: add "Return for revision" with a note box + "evidence missing" checkbox (hidden when `revisions_remaining==0`); show revision history (notes + recommendation versions + risk per pass) in the final record (depends on T047)
 
 **Checkpoint**: all three stories independently functional; S2/S3/S6 + variants green.
 

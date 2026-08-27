@@ -118,6 +118,16 @@ def graph_for():
 
 
 @pytest.fixture
+def checkpointer():
+    """A shared in-memory checkpointer (for restart-safe-resume tests)."""
+    from langgraph.checkpoint.memory import MemorySaver
+
+    from dcra.persistence.serde import dcra_serde
+
+    return MemorySaver(serde=dcra_serde())
+
+
+@pytest.fixture
 def change_request():
     def _cr(text: str, by: str = "data.engineer") -> ChangeRequest:
         return ChangeRequest(raw_text=text, submitted_by=by)

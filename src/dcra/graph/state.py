@@ -37,6 +37,7 @@ class GraphState(TypedDict, total=False):
     risk: RiskAssessment | None
     risk_history: Annotated[list[RiskAssessment], append_list]
     evidence_gap: bool
+    force_investigation: bool
     recommendations: Annotated[list[Recommendation], append_list]
     review_actions: Annotated[list[ReviewAction], append_list]
     revision_count: int
