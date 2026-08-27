@@ -20,6 +20,7 @@ class Repository(Protocol):
 InterpretFn = Callable[[str], StructuredChange]
 RecommendFn = Callable[..., Recommendation]  # keyword args: change, evidence, risk, note, version
 InvestigateFn = Callable[..., list[EvidenceItem]]  # keyword args: change, gap_note
+UsageReaderFn = Callable[[str, str], list[EvidenceItem]]  # (table, column) -> downstream usage
 
 
 @dataclass
@@ -30,6 +31,9 @@ class GraphDeps:
     dataset: Dataset
     repository: Repository | None = None
     revision_limit: int = 2
+    # V1 (ADR-020): the downstream-usage read can be swapped for an MCP-backed reader.
+    # None ⇒ the graph uses the local `read_downstream_usage(dataset, ...)`.
+    usage_reader: UsageReaderFn | None = None
 
 
 def production_deps(settings: Settings, dataset: Dataset | None = None) -> GraphDeps:
@@ -47,6 +51,12 @@ def production_deps(settings: Settings, dataset: Dataset | None = None) -> Graph
     ds = dataset or default_dataset()
     tools = make_evidence_tools(ds)
 
+    usage_reader = None
+    if settings.usage_via_mcp:
+        from dcra.mcp.client import read_downstream_usage_via_mcp
+
+        usage_reader = read_downstream_usage_via_mcp
+
     return GraphDeps(
         interpret_fn=lambda raw: interpret(model, raw),
         recommend_fn=lambda **kw: draft_recommendation(model, **kw),
@@ -54,4 +64,5 @@ def production_deps(settings: Settings, dataset: Dataset | None = None) -> Graph
         dataset=ds,
         repository=PostgresRepository(settings.database_url) if settings.database_url else None,
         revision_limit=settings.revision_limit,
+        usage_reader=usage_reader,
     )

@@ -16,18 +16,23 @@ from dcra.domain.models import EvidenceItem, StructuredChange
 _RECURSION_LIMIT = 8
 
 
+_SYSTEM = (
+    "You fill a specific evidence gap for a data-change risk review. "
+    "Use ONLY the provided read-only tools. Do not speculate. "
+    "When you have what the tools can give, stop."
+)
+
+
 def run_investigation(
     model: Any, *, change: StructuredChange, tools: list, gap_note: str
 ) -> list[EvidenceItem]:
-    """Bounded read-only ReAct agent. Returns any additional EvidenceItems it gathered."""
-    from langgraph.prebuilt import create_react_agent
+    """Bounded read-only agent. Returns any additional EvidenceItems it gathered."""
+    from langchain.agents import create_agent
 
-    agent = create_react_agent(model, tools)
+    agent = create_agent(model, tools, system_prompt=_SYSTEM)
     prompt = (
-        "You are filling a specific evidence gap for a data-change risk review. "
         f"Change: {change.model_dump(mode='json')}. Gap: {gap_note}. "
-        "Use ONLY the provided read-only tools. Do not speculate. "
-        "When you have what the tools can give, stop."
+        "Gather what the tools can tell you about it."
     )
     state = agent.invoke(
         {"messages": [("human", prompt)]},

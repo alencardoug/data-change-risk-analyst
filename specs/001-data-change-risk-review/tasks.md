@@ -232,4 +232,17 @@ between the implemented code and the spec/plan; run `/speckit-implement` to comp
 - [X] T069 [P] Cover the Streamlit "Reopen a case by id" path: a test (or scripted check) that a reopened `thread_id` in `AWAITING_REVIEW` yields the review payload via `is_awaiting_review` + `review_payload` and can be resumed to a final record — per T048 / plan: streamlit reopen (partial).
 - [X] T070 [P] Reconcile the investigator agent location: `run_investigation` lives in `src/dcra/llm/factory.py`, but `plan.md` Project Structure names `src/dcra/agent/investigator.py`. Either move it there (re-export from `factory` for callers) or add the consolidation to `plan.md`/ADR-018 — per plan: Project Structure (contradicts, minor).
 - [X] T071 [P] Add a unit assertion that every `RiskFactor` a predicate can emit has a non-empty, sentence-form `description` (not just a stable `code`) — supports SC-001 ("a reviewer can explain the rating from the factors shown") (partial).
-- [ ] T072 [P] Replace `create_react_agent` (LangGraph, deprecated in V1, removed V2) with `from langchain.agents import create_agent` in `src/dcra/agent/investigator.py`; add `langchain` to deps — per llm_integration deprecation warning (partial).
+- [X] T072 [P] Replace `create_react_agent` (LangGraph, deprecated in V1, removed V2) with `from langchain.agents import create_agent` in `src/dcra/agent/investigator.py`; add `langchain` to deps — per llm_integration deprecation warning. **Done in Phase 8 (ADR-021).**
+
+---
+
+## Phase 8: V1 increment — MCP + cleanup
+
+Branch `002-v1-mcp-and-cleanup`. ADR-020 / ADR-021.
+
+- [X] T072 [P] Replace `create_react_agent` with `from langchain.agents import create_agent` in `src/dcra/agent/investigator.py`; add `langchain` to deps (ADR-021). Verified against `gpt-4o`.
+- [X] T073 Add `src/dcra/mcp/server.py` — `FastMCP("dcra-evidence")` exposing ONE tool `get_downstream_usage` over stdio (ADR-020).
+- [X] T074 Add `src/dcra/mcp/client.py` — `read_downstream_usage_via_mcp(table, column)` via `MultiServerMCPClient` (stdio); any failure → one `UNAVAILABLE` EvidenceItem (FR-024).
+- [X] T075 [P] Add the swap seam: `GraphDeps.usage_reader`; `collect_usage` node uses it (step log `collect_usage (via MCP)`); `config.usage_via_mcp` from `DCRA_USAGE_VIA_MCP`; `production_deps` wires it.
+- [X] T076 [P] Tests `tests/mcp/`: MCP reader byte-for-byte matches the local reader; "server unavailable" degrades to `UNAVAILABLE`; the graph seam uses the injected reader.
+- [X] T077 [P] `docs/mcp.md` — before/after table, "what MCP adds and does not add", interview points; `.env.example` gains `DCRA_USAGE_VIA_MCP`.
