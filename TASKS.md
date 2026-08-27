@@ -35,4 +35,4 @@
 
 ## Estado final
 
-Todas as tarefas de `specs/001-data-change-risk-review/tasks.md` concluídas ****incluindo T061** — S1–S8 rodados end-to-end contra `gpt-4o` + Postgres real, comportamento idêntico aos e2e com fake model. Aberto apenas T072 (follow-up: `create_react_agent` deprecado na LangGraph V1). Postgres de dev fica de pé via `docker compose up -d` (parar com `docker compose down`).
+Todas as tarefas de `specs/001-data-change-risk-review/tasks.md` concluídas **incluindo T061** — S1–S8 rodados end-to-end contra `gpt-4o` + Postgres real, comportamento idêntico aos e2e com fake model. Aberto apenas **T072** (follow-up não urgente: `create_react_agent` foi deprecado na LangGraph V1, some na V2). Postgres de dev fica de pé via `docker compose up -d` (parar com `docker compose down`).
