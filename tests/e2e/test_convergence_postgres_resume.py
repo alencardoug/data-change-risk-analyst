@@ -7,7 +7,6 @@ checkpointer + graph pick the case up by thread_id — the closest a single test
 "the application was fully restarted" (SC-005 / FR-012).
 """
 
-import os
 import uuid
 
 import pytest
@@ -16,10 +15,16 @@ from dcra.domain.enums import CaseStatus, Outcome
 from dcra.domain.models import ChangeRequest
 from dcra.graph.build import build_graph, pending_interrupt, resume, run
 from dcra.persistence.checkpointer import open_checkpointer
-from tests.conftest import InMemoryRepository, fake_investigate, fake_recommend, keyword_interpret
+from tests.conftest import (
+    InMemoryRepository,
+    fake_investigate,
+    fake_recommend,
+    keyword_interpret,
+    reachable_db_url,
+)
 
-_DB = os.getenv("DATABASE_URL")
-pytestmark = pytest.mark.skipif(not _DB, reason="set DATABASE_URL to run Postgres resume test")
+_DB = reachable_db_url()
+pytestmark = pytest.mark.skipif(not _DB, reason="needs a reachable Postgres (docker compose up -d)")
 
 
 def _deps(repo):

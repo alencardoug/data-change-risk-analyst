@@ -1,14 +1,13 @@
 """T019 — AnalysisRecord round-trip (DB-gated: needs DATABASE_URL + reachable Postgres)."""
 
-import os
-
 import pytest
 
 from dcra.domain.enums import Outcome
 from dcra.domain.models import AnalysisRecord, ChangeRequest
+from tests.conftest import reachable_db_url
 
-_DB = os.getenv("DATABASE_URL")
-pytestmark = pytest.mark.skipif(not _DB, reason="set DATABASE_URL to run repository tests")
+_DB = reachable_db_url()
+pytestmark = pytest.mark.skipif(not _DB, reason="needs a reachable Postgres (docker compose up -d)")
 
 
 @pytest.fixture
