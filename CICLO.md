@@ -129,21 +129,27 @@ O que a analogia deixa concreto:
 
 ---
 
-## Pendente para o `/speckit-clarify`
+## Resolvido no `/speckit-clarify` (2026-08-27, ADR-016)
 
-A nota de revisão realimenta **só** o nó `recomendar`, ou também re-dispara `avaliar risco`
-(ou o agente investigador)?
+A nota de revisão tem **dois modos**:
 
-**Recomendação:** só `recomendar` por padrão; re-dispara o resto apenas se o humano marcar
-explicitamente *"falta evidência"*. No exemplo acima, o técnico "subiu para ALTO" por conta
-própria no texto — se você quer que o **carimbo de risco** mude formalmente, aí precisa
-re-rodar `avaliar risco`.
+- **Nota sem marcação** → volta só ao nó `recomendar`. O carimbo de risco **não muda**; o
+  histórico ganha uma nova versão da recomendação.
+- **Nota marcada como "evidence missing"** → volta antes de `recomendar`: re-roda `coletar
+  evidências` e `avaliar risco` (a categoria LOW/MÉDIO/ALTO **pode mudar**) e então gera a nova
+  recomendação.
+
+Os dois modos contam para o mesmo limite (`revision_count`, default 2). Na analogia da
+prefeitura: a nota comum volta para a mesa do técnico; a nota "faltou levantamento" volta para
+os pesquisadores **e** para o avaliador antes de chegar de novo ao técnico.
 
 ---
 
 ## Decisões relacionadas
 
 - **ADR-011** — este ciclo completo (loop no grafo) com guarda `revision_count` máx. 2.
+- **ADR-016** — os dois modos da nota de revisão (só `recomendar` vs re-avaliar risco) e o
+  gatilho da investigação adicional por lacuna de evidência.
 - **ADR-005** — human-in-the-loop como estado de workflow (`interrupt`/`resume`).
 - **ADR-012** — PostgreSQL como checkpointer desde o incremento 1 (torna a pausa/retomada
   real e demonstrável; permite inspecionar o estado serializado por `thread_id`).

@@ -31,13 +31,20 @@
 
 ## Notes
 
-- All checklist items pass. Status: **ready for `/speckit-clarify` or `/speckit-plan`**.
-- The two clarifications raised during specification were resolved with the user on 2026-08-27
-  (recorded as ADR-015 in `DECISIONS.md`):
+- All checklist items pass. Status: **ready for `/speckit-plan`**.
+- Clarifications resolved during `/speckit-specify` (2026-08-27, ADR-015):
   - **FR-019** — LOW risk auto-finalizes without human review; MEDIUM/HIGH require human review.
   - **FR-020** — an asset not found in the evidence source is rated HIGH with an explicit
     "asset not found" factor and proceeds to human review; no asset details are fabricated.
-- Deferred to `/speckit-clarify` (do not block planning, but decide before or during plan):
-  agent-investigation trigger (evidence gap vs risk level); whether a revision note can re-run
-  risk assessment; which evidence branches are genuinely parallel; behavior when an evidence
-  source is unavailable (block vs reduce confidence — currently "reduce confidence").
+- Clarifications resolved during `/speckit-clarify` (2026-08-27, see `## Clarifications` in spec.md;
+  ADR-016):
+  - **FR-002** — V0 recognizes exactly drop column, alter column, add index.
+  - **FR-024** — evidence source unavailable on MEDIUM/HIGH → continue to human review with the
+    gap flagged and confidence marked reduced; not auto-blocked.
+  - **FR-014 / FR-025** — an unmarked revision note re-drives the recommendation only; a note
+    marked "evidence missing" re-runs evidence collection and risk assessment (risk category may
+    change). Both count against the revision limit.
+  - **FR-010** — additional investigation runs only on a material evidence gap, not by risk level.
+- Deferred to `/speckit-plan` (HOW-level, not spec gaps): whether evidence collection branches
+  run in parallel; MCP in/out of V0; concrete stopping conditions for the investigation step;
+  persistence and interface choices.

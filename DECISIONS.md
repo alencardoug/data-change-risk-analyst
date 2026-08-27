@@ -66,7 +66,7 @@ Consequências: bateria de testes determinísticos sem LLM; o LLM não define a 
 Contexto: aprender loop de LangGraph junto com interrupt/resume.
 Decisão: na revisão humana há três saídas — **aprovar**, **rejeitar**, **pedir revisão**. "Pedir revisão" carrega uma nota em texto livre, o grafo retoma e roteia por **aresta condicional de volta** ao nó de recomendação, que regenera; então volta a pausar. Guarda de terminação: `revision_count` máx. 2 (configurável); atingido o limite, "pedir revisão" deixa de ser oferecida. Histórico de notas e versões acumulado em `revision_history` no estado.
 Alternativas: só aprovar/rejeitar; aprovar/editar-inline/rejeitar sem regeneração.
-Consequências: +1 aresta condicional, +campo de estado, +guarda, +~3 testes (revisão aceita, 2ª revisão, limite). A definir em clarify: a nota realimenta só `recomendar` ou também re-dispara `avaliar risco`/agente investigador (recomendação: só `recomendar`, salvo marcação explícita de "falta evidência").
+Consequências: +1 aresta condicional, +campo de estado, +guarda, +~3 testes (revisão aceita, 2ª revisão, limite). O alvo do loop foi decidido em `/speckit-clarify` — ver ADR-016.
 
 ## ADR-012 — PostgreSQL desde o incremento 1
 **Status:** accepted
@@ -101,6 +101,18 @@ Decisão:
 - **FR-020** — ativo afetado ausente da fonte de evidência ⇒ risco HIGH com fator explícito "asset not found in evidence source", segue para revisão humana; nada sobre o ativo é inventado.
 Alternativas consideradas: revisão obrigatória para toda mudança (mais simples, mas sem o branch de roteamento); LOW auto-finaliza só com evidência completa (mais defensável, roteamento mais complexo); ativo desconhecido → interromper / pedir cadastro (beco sem saída ou +escopo).
 Consequências: a demo precisa de um caso LOW que "pula" o humano (bom para SC-002); o sistema grava registro final sozinho em parte dos casos — aceitável porque é controle determinístico sobre baixo impacto (Constituição II/V).
+
+## ADR-016 — Resultados do /speckit-clarify (sessão 2026-08-27)
+**Status:** accepted
+
+Contexto: Gate 2, quatro perguntas de esclarecimento sobre `specs/001-data-change-risk-review/spec.md`.
+Decisões:
+- **Operações do V0 (FR-002)** — o sistema reconhece exatamente `drop column`, `alter column` (tipo/nullability) e `add index`. Perfis de risco distintos ⇒ demo com caminhos naturalmente diferentes; regras determinísticas testáveis.
+- **Fonte de evidência indisponível (FR-024)** — em MEDIUM/HIGH, o fluxo segue até a revisão humana com a lacuna sinalizada e a confiança marcada como reduzida; não bloqueia aprovação automaticamente.
+- **Loop de revisão e risco (FR-014 / FR-025)** — nota sem marcação re-dirige só a recomendação, mantendo o risco. Nota marcada como "evidence missing" re-roda coleta de evidência + avaliação de risco (a categoria pode mudar) antes de nova recomendação. Ambas contam para o limite de revisões (default 2). Substitui a premissa "só recomendar" do ADR-011.
+- **Gatilho da investigação adicional (FR-010)** — roda apenas quando há lacuna de evidência material à recomendação; nunca por nível de risco. (Usuário sem preferência; default recomendado adotado, revisável no plan.)
+Alternativas consideradas e rejeitadas: só `drop column` (demo fraca); texto livre de schema (interpretação/testes difíceis); bloquear quando evidência falta (beco sem saída); investigar sempre em HIGH (autonomia sem necessidade).
+Consequências: `alter column` e `add index` entram no contrato de interpretação e nas regras de risco; o loop agora tem dois alvos possíveis (recomendação vs avaliação de risco), exigindo um flag "evidence missing" no estado e testes para os dois caminhos; FR-008 (reprodutibilidade) passa a valer por passo de avaliação, não por caso.
 
 ## Template
 

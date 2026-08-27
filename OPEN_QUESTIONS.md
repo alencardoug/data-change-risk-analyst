@@ -7,7 +7,7 @@ Use estas perguntas como matéria-prima para `/speckit.clarify`. O agent deve pr
 1. ✅ RESOLVIDO (2026-08-27, ADR-009): duas personas numa jornada — data engineer (propõe) + data owner/change approver (revisa).
 2. A mudança analisada é apenas em schema/tabela ou também pode ser mudança de pipeline/regra de transformação?
 3. O sistema produz somente recomendação ou também cria um registro formal da decisão? (tendência: registro formal — tabela `change_decision`, ADR-012; confirmar na spec)
-4. O que caracteriza “evidência suficiente” para recomendar?
+4. ✅ RESOLVIDO (2026-08-27, ADR-016 / FR-009+FR-010): recomendação é sempre produzida; "evidência insuficiente" (lacuna material) dispara a investigação adicional, não bloqueia a recomendação.
 5. ✅ RESOLVIDO (2026-08-27, ADR-011): o reviewer pede revisão com nota em texto livre e o sistema regenera (loop), com limite de 2. Edição inline não entra no V0.
 
 ## Risco
@@ -15,12 +15,12 @@ Use estas perguntas como matéria-prima para `/speckit.clarify`. O agent deve pr
 6. ✅ RESOLVIDO (2026-08-27, ADR-010): `LOW/MEDIUM/HIGH + fatores`, categoria derivada de regras determinísticas.
 7. Quais regras mínimas precisam ser determinísticas?
 8. ✅ RESOLVIDO (2026-08-27, ADR-015 / FR-020): ativo desconhecido → HIGH com fator explícito "asset not found", segue para revisão. Não inventa dados.
-9. Uma tool indisponível deve bloquear aprovação ou apenas reduzir confiança? (spec assume "reduzir confiança + avisar revisor"; confirmar em clarify)
+9. ✅ RESOLVIDO (2026-08-27, ADR-016 / FR-024): não bloqueia; segue para revisão com lacuna sinalizada e confiança reduzida.
 
 ## LangGraph
 
-10. Quais branches são genuinamente independentes e merecem parallelization?
-11. Agent enrichment deve ocorrer por nível de risco ou por insuficiência de evidência?
+10. Quais branches são genuinamente independentes e merecem parallelization? (adiado para `/speckit-plan` — é HOW)
+11. ✅ RESOLVIDO (2026-08-27, ADR-016 / FR-010): por lacuna de evidência material; nunca por nível de risco.
 12. ✅ RESOLVIDO (2026-08-27, ADR-015 / FR-019): pausa humana só para MEDIUM/HIGH; LOW auto-finaliza.
 13. ✅ RESOLVIDO (2026-08-27, ADR-011): sim, o loop `revise → regenera → re-review` entra no V0, com limite de 2. Pendente: a nota realimenta só `recomendar` ou também `avaliar risco`/agente.
 14. A demonstração precisa exibir nodes/estado em tempo real? (tendência: sim, UI mostra etapas + estado; confirmar)
