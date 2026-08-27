@@ -19,23 +19,23 @@ Use estas perguntas como matéria-prima para `/speckit.clarify`. O agent deve pr
 
 ## LangGraph
 
-10. Quais branches são genuinamente independentes e merecem parallelization? (adiado para `/speckit-plan` — é HOW)
+10. ✅ RESOLVIDO (2026-08-27, ADR-017): `collect_asset` / `collect_deps` / `collect_usage` — 3 leituras independentes, fan-out/fan-in com reducer `merge_evidence`.
 11. ✅ RESOLVIDO (2026-08-27, ADR-016 / FR-010): por lacuna de evidência material; nunca por nível de risco.
 12. ✅ RESOLVIDO (2026-08-27, ADR-015 / FR-019): pausa humana só para MEDIUM/HIGH; LOW auto-finaliza.
 13. ✅ RESOLVIDO (2026-08-27, ADR-011): sim, o loop `revise → regenera → re-review` entra no V0, com limite de 2. Pendente: a nota realimenta só `recomendar` ou também `avaliar risco`/agente.
-14. A demonstração precisa exibir nodes/estado em tempo real? (tendência: sim, UI mostra etapas + estado; confirmar)
+14. ✅ RESOLVIDO (2026-08-27, ADR-017): sim — Streamlit com step view (etapas + evidências + risco + recomendação + gate) e README com diagrama/GIF.
 
 ## LangChain / Agent
 
-15. O agent escolhe livremente entre tools read-only ou segue uma ordem parcial?
-16. Structured output será usado apenas no parsing e recommendation ou também em outras decisões?
-17. Qual comportamento deve ser mockado nos testes e qual deve ser testado com LLM real?
+15. ✅ RESOLVIDO (2026-08-27, ADR-017): `create_react_agent` escolhe livremente entre as 3 tools read-only, mas com lista de tools restrita + `recursion_limit` + prompt que o limita a preencher a lacuna.
+16. ✅ RESOLVIDO (2026-08-27, ADR-017 / contracts/llm-schemas.md): structured output só em interpretação (`StructuredChange`) e recomendação (`Recommendation`); risco e roteamento nunca via LLM.
+17. ✅ RESOLVIDO (2026-08-27, ADR-017): unit + e2e usam fake model (determinístico); llm_integration (poucos casos, opt-in `RUN_LLM_TESTS=1`) usa modelo real para schema de parsing/recomendação e tool-calling do agente.
 
 ## MCP
 
-18. MCP é requisito de V0, requisito de V1 ou apenas experimento opcional?
-19. Se houver MCP, ele deve expor tools do domínio de dados, uma integração externa, ou ambos?
-20. Qual aprendizado de MCP queremos demonstrar que uma tool Python local não demonstraria?
+18. ✅ RESOLVIDO (2026-08-27, ADR-007 / ADR-017): V1. Fora do V0.
+19. V1: expor UMA tool de evidência do domínio via servidor MCP local (não integração externa).
+20. V1: demonstrar cliente/servidor/transporte MCP e o modo de falha "servidor MCP indisponível" — o que uma função Python local não exercita.
 
 ## Portfólio
 

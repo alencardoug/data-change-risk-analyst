@@ -45,6 +45,7 @@
     marked "evidence missing" re-runs evidence collection and risk assessment (risk category may
     change). Both count against the revision limit.
   - **FR-010** — additional investigation runs only on a material evidence gap, not by risk level.
-- Deferred to `/speckit-plan` (HOW-level, not spec gaps): whether evidence collection branches
-  run in parallel; MCP in/out of V0; concrete stopping conditions for the investigation step;
-  persistence and interface choices.
+- Resolved in `/speckit-plan` (2026-08-27, ADR-017, see `plan.md`): parallel evidence fan-out +
+  `merge_evidence` reducer; MCP deferred to V1; investigator agent bounded (tool allow-list +
+  `recursion_limit`, gap-triggered); PostgreSQL + `PostgresSaver`; Streamlit interface; default
+  model `claude-opus-5` (swappable); 3-tier test strategy.

@@ -30,14 +30,14 @@ O projeto deve favorecer um caso com dados estruturados e pouco esforço de simu
 Confirmado na sessão de discovery (2026-08-27). A revisão humana é um estado do grafo com `interrupt`/`resume`, não um botão pós-resposta. Ver ADR-010.
 
 ## ADR-006 — Workflow-first
-**Status:** proposed
+**Status:** accepted
 
-LangGraph como orquestrador e agent LangChain como investigador limitado. Validar durante plan.
+Confirmado no `/speckit-plan` (2026-08-27). LangGraph orquestra; agente LangChain é investigador read-only limitado, acionado só por lacuna de evidência. Ver ADR-017.
 
 ## ADR-007 — MCP pós-V0
-**Status:** proposed
+**Status:** accepted
 
-Começar com tools locais e integrar MCP depois. Validar conforme objetivo educacional.
+Confirmado no `/speckit-plan` (2026-08-27). V0 usa tools locais `@tool`; MCP entra como incremento V1 expondo uma tool de evidência via servidor local, com antes/depois visível. Ver ADR-017.
 
 ## ADR-008 — Data Change Risk Analyst
 **Status:** accepted
@@ -113,6 +113,23 @@ Decisões:
 - **Gatilho da investigação adicional (FR-010)** — roda apenas quando há lacuna de evidência material à recomendação; nunca por nível de risco. (Usuário sem preferência; default recomendado adotado, revisável no plan.)
 Alternativas consideradas e rejeitadas: só `drop column` (demo fraca); texto livre de schema (interpretação/testes difíceis); bloquear quando evidência falta (beco sem saída); investigar sempre em HIGH (autonomia sem necessidade).
 Consequências: `alter column` e `add index` entram no contrato de interpretação e nas regras de risco; o loop agora tem dois alvos possíveis (recomendação vs avaliação de risco), exigindo um flag "evidence missing" no estado e testes para os dois caminhos; FR-008 (reprodutibilidade) passa a valer por passo de avaliação, não por caso.
+
+## ADR-017 — Plano de implementação do V0
+**Status:** accepted
+
+Contexto: Gate 4 (`/speckit-plan`), 4 decisões de arquitetura respondidas pelo usuário.
+Decisões:
+- **Hipótese A (workflow-first)** — LangGraph orquestra estado/roteamento/HITL/checkpoint; LangChain fornece chat model, structured output, tools de evidência e o agente investigador (read-only, `create_react_agent`, tool-list restrita, `recursion_limit`, acionado só quando `evidence_gap`).
+- **Coleta de evidência paralela** — fan-out de `collect_asset` / `collect_deps` / `collect_usage` a partir de `interpret`, fan-in em `assess_risk`; `GraphState.evidence` com reducer `merge_evidence` (concat + dedupe por `(kind,key)` + ordenação estável) para preservar reprodutibilidade (FR-008). Ensina fan-out/fan-in + reducers.
+- **MCP fora do V0** (confirma ADR-007).
+- **Interface Streamlit** — app único mostrando etapas → evidências → risco+fatores → recomendação → gate de revisão → resume; README com diagrama + screenshots/GIF para quem não roda.
+- **PostgreSQL desde já** (ADR-012) — `PostgresSaver` para checkpoints + tabela `analysis_record` para o registro final (repositório psycopg fino).
+- **LangSmith sempre ligado** (ADR-013), via env.
+- **Modelo default `claude-opus-5`** via `langchain-anthropic`, provider/modelo troc��vel em `config.py` (`claude-sonnet-5` como opção mais barata, escolha do usuário).
+- **Testes em 3 camadas** — unit (regras/roteamento/reducers/estado/schema/repo, fake model), llm_integration (opt-in `RUN_LLM_TESTS=1`), e2e (grafo inteiro com fake model + checkpointer in-memory, cobrindo S1–S8 do quickstart).
+Constitution Check: PASS, sem violações (Complexity Tracking vazio). Paralelização justificada por independência real + objetivo de aprendizado explícito.
+Artefatos: `specs/001-data-change-risk-review/plan.md`, `research.md`, `data-model.md`, `contracts/{evidence-tools,llm-schemas,graph-state}.md`, `quickstart.md`.
+Consequências: estrutura `src/dcra/` (core importável) + `app/streamlit_app.py` fino; docker-compose com postgres; `.env.example` com as chaves; próximo gate `/speckit-tasks`.
 
 ## Template
 
