@@ -131,6 +131,20 @@ Constitution Check: PASS, sem violações (Complexity Tracking vazio). Paraleliz
 Artefatos: `specs/001-data-change-risk-review/plan.md`, `research.md`, `data-model.md`, `contracts/{evidence-tools,llm-schemas,graph-state}.md`, `quickstart.md`.
 Consequências: estrutura `src/dcra/` (core importável) + `app/streamlit_app.py` fino; docker-compose com postgres; `.env.example` com as chaves; próximo gate `/speckit-tasks`.
 
+## ADR-018 — Desvios de implementação (V0 entregue)
+**Status:** accepted
+
+Contexto: `/speckit-implement` das Fases 1–6. Ajustes feitos durante a implementação, todos compatíveis com plan/spec.
+Decisões:
+- **Versões reais** — `uv` provisiona Python 3.13; `langchain-core` 1.x (o plan estimou 0.3, com nota de "conferir na implementação"). `langgraph` + `langgraph-checkpoint-postgres` atuais. Sem impacto de contrato.
+- **Seam de DI** (`GraphDeps`) em vez de o grafo chamar `llm/factory` direto — permite testes determinísticos sem LLM nem banco (fake model + `MemorySaver`). `production_deps()` faz a fiação real.
+- **`InterpretationError` propaga para fora do grafo** e é capturada em `run()` (em vez de uma aresta condicional de erro) — o map de aresta condicional do langgraph desta versão não aceita valor-lista para fan-out. Resultado idêntico: sem registro, erro exposto (FR-002).
+- **Nó `reassess_gate` + flag `force_investigation`** — necessários para o modo "evidence missing" do loop (ADR-016): re-fan-out dos coletores e forçar o investigador a rodar naquele passo. Não estavam nomeados no `contracts/graph-state.md`, mas realizam o comportamento ali especificado.
+- **`route_after_review` valida a `ReviewAction` em `resume()`** — nota de RETURN em branco levanta `ValidationError` antes de tocar o estado do grafo (FR-016), sem consumir ciclo.
+- **Serializer de checkpoint com allowlist** (`persistence/serde.py`) — registra os value objects do domínio para o msgpack do langgraph (silencia o warning "unregistered type" e é à prova de futuro).
+- **README reescrito** — de "SDD discovery starter" para README de produto; os seeds/`DISCOVERY_NOTES`/`DECISIONS` continuam como registro de discovery.
+Consequência: 50 testes determinísticos verdes sem API key/DB; 2 testes de repositório DB-gated; `tests/llm_integration/` opt-in. ADR-011/015/016/017 permanecem válidos.
+
 ## Template
 
 ```text

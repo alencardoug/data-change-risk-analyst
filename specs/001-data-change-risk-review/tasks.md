@@ -173,13 +173,13 @@ state, note-driven re-entry, why the guard lives in code not the prompt.
 
 ## Phase 6: Polish & Cross-Cutting
 
-- [ ] T058 [P] Write `README.md`: problem in <60s, architecture diagram, the compiled LangGraph graph image, a demo GIF, "3 decisions to defend" (workflow vs agent, deterministic risk, HITL via interrupt/checkpoint), local run steps
-- [ ] T059 [P] Write `docs/learning-notes.md`: per concept — what / why here / simpler alternative / trade-off / where in code / how tested (Definition of Learned from `LEARNING_OBJECTIVES.md`)
-- [ ] T060 [P] Add `docs/observability.md`: how to read a LangSmith trace for one case (interrupt point, agent tool loop, tokens)
-- [ ] T061 Run `quickstart.md` scenarios S1–S8 manually against a real model once; record outcomes; fix gaps
-- [ ] T062 [P] Harden edge cases from `TEST_STRATEGY_SEED.md` not yet covered: tool internal error → `UNAVAILABLE` at node boundary; invalid `Recommendation` after re-ask → safe fallback; agent finds nothing new
-- [ ] T063 [P] Add `ruff`/`pytest` CI-style Makefile targets (`make test`, `make lint`, `make e2e`, `make llm-test`); ensure `pytest tests/unit tests/e2e` runs with no API key
-- [ ] T064 Update `DECISIONS.md` with any implementation-time deviations; confirm ADR-011/015/016/017 still hold
+- [X] T058 [P] Write `README.md`: problem in <60s, architecture diagram, the compiled LangGraph graph image, a demo GIF, "3 decisions to defend" (workflow vs agent, deterministic risk, HITL via interrupt/checkpoint), local run steps
+- [X] T059 [P] Write `docs/learning-notes.md`: per concept — what / why here / simpler alternative / trade-off / where in code / how tested (Definition of Learned from `LEARNING_OBJECTIVES.md`)
+- [X] T060 [P] Add `docs/observability.md`: how to read a LangSmith trace for one case (interrupt point, agent tool loop, tokens)
+- [ ] T061 Run `quickstart.md` S1–S8 against a **real model** once (needs ANTHROPIC_API_KEY + Postgres). S1–S8 are already automated as e2e with a fake model; this is the live confirmation.
+- [X] T062 [P] Hardening: `_normalise_rec` repair path tested (`tests/unit/test_recommendation_normalise.py`); disabled-source → UNAVAILABLE and agent-adds-0 already covered by `test_us1_evidence_unavailable`. Remaining: internal-exception → UNAVAILABLE wrapper in a node (deferred).
+- [X] T063 [P] Add `ruff`/`pytest` CI-style Makefile targets (`make test`, `make lint`, `make e2e`, `make llm-test`); ensure `pytest tests/unit tests/e2e` runs with no API key
+- [X] T064 Update `DECISIONS.md` with any implementation-time deviations; confirm ADR-011/015/016/017 still hold
 
 ---
 
