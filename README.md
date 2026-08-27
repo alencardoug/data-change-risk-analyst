@@ -99,6 +99,29 @@ graph TD;
 
 ---
 
+## The 2–3 minute demo
+
+Submit **`Remove the column customer_legacy_id from the orders table`** and watch one case
+end to end: structured interpretation → three evidence reads fan out in parallel → deterministic
+rules rate it **MEDIUM** with named factors → an AI recommendation (labelled as such) → the run
+**pauses** at the review gate → **Approve** → one traceable `analysis_record`. That single flow
+shows the business problem, the deterministic/probabilistic split, parallel fan-out with a
+reducer, and interrupt/resume — the things worth talking through in an interview.
+
+Contrast cases: `add index on orders(customer_id)` (LOW → auto-finalizes, no gate) and
+`drop column orders.legacy_region` (asset absent → HIGH, `ASSET_NOT_FOUND`).
+
+## What was deliberately *not* built
+
+"Corporate" here means clarity, contracts, tests and traceability — not surface area
+(constitution §I, §VI). Kept out on purpose: authentication / RBAC, a full change-management
+lifecycle (tickets, calendars, approval chains), microservices / queues / streaming, RAG /
+embeddings / a vector DB, multi-agent orchestration, a generic or arbitrary-SQL tool, dozens of
+tables, and invented metrics. The agent is read-only and recursion-capped; no DDL is ever
+executed. Adding any of those would be enterprise theater for a portfolio V0.
+
+---
+
 ## Run it
 
 ```bash
