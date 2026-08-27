@@ -39,6 +39,6 @@ Use estas perguntas como matéria-prima para `/speckit.clarify`. O agent deve pr
 
 ## Portfólio
 
-21. Qual demo de 2–3 minutos melhor evidencia raciocínio arquitetural?
-22. Quais 3 decisões técnicas devem aparecer claramente no README final?
-23. Quais funcionalidades parecem “enterprise theater” e devem ser evitadas?
+21. ✅ RESOLVIDO (2026-08-27, README "The 2–3 minute demo"): o caso MEDIUM `drop column orders.customer_legacy_id` end-to-end — interpretação → fan-out paralelo → risco determinístico + fatores → recomendação IA → gate `interrupt()` → Approve → registro. Mais os contrastes LOW (auto-finaliza) e ativo ausente (HIGH).
+22. ✅ RESOLVIDO (README "Three decisions worth defending"): (1) LangGraph vs chain — pausa/loop/branches em estado determinístico; (2) risco em código puro, nunca no LLM; (3) HITL via `interrupt()` + checkpoint, decisão humana como campo distinto da recomendação.
+23. ✅ RESOLVIDO (README "What was deliberately not built"): fora — auth/RBAC, lifecycle completo de change-management, microserviços/filas, RAG/vector DB, multi-agent, tool de SQL genérico, dezenas de tabelas, métricas inventadas. Agente read-only + recursion-capped; sem DDL.
