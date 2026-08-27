@@ -92,6 +92,16 @@ Decisão: constituição gerada em `.specify/memory/constitution.md`, v1.0.0 (20
 Alternativas: manter os 10 princípios do seed (redundância); constituição com stack embutida (perde poder de governar).
 Consequências: emendas exigem novo ADR `accepted` + bump semântico; conformidade checada no gate `analyze`.
 
+## ADR-015 — Gate de revisão por nível de risco + ativo desconhecido
+**Status:** accepted
+
+Contexto: clarificações levantadas ao escrever a spec (`specs/001-data-change-risk-review/spec.md`, FR-019/FR-020).
+Decisão:
+- **FR-019** — risco LOW é finalizado automaticamente, sem revisão humana, com recomendação/fatores/evidência gravados e o registro marcado como "auto-finalizado sem revisão". MEDIUM e HIGH exigem revisão humana. Isso cria uma aresta condicional determinística `risco → finalizar | risco → revisar`.
+- **FR-020** — ativo afetado ausente da fonte de evidência ⇒ risco HIGH com fator explícito "asset not found in evidence source", segue para revisão humana; nada sobre o ativo é inventado.
+Alternativas consideradas: revisão obrigatória para toda mudança (mais simples, mas sem o branch de roteamento); LOW auto-finaliza só com evidência completa (mais defensável, roteamento mais complexo); ativo desconhecido → interromper / pedir cadastro (beco sem saída ou +escopo).
+Consequências: a demo precisa de um caso LOW que "pula" o humano (bom para SC-002); o sistema grava registro final sozinho em parte dos casos — aceitável porque é controle determinístico sobre baixo impacto (Constituição II/V).
+
 ## Template
 
 ```text

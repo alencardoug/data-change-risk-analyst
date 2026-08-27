@@ -14,14 +14,14 @@ Use estas perguntas como matéria-prima para `/speckit.clarify`. O agent deve pr
 
 6. ✅ RESOLVIDO (2026-08-27, ADR-010): `LOW/MEDIUM/HIGH + fatores`, categoria derivada de regras determinísticas.
 7. Quais regras mínimas precisam ser determinísticas?
-8. Um ativo desconhecido deve gerar HIGH, bloquear análise ou pedir informação?
-9. Uma tool indisponível deve bloquear aprovação ou apenas reduzir confiança?
+8. ✅ RESOLVIDO (2026-08-27, ADR-015 / FR-020): ativo desconhecido → HIGH com fator explícito "asset not found", segue para revisão. Não inventa dados.
+9. Uma tool indisponível deve bloquear aprovação ou apenas reduzir confiança? (spec assume "reduzir confiança + avisar revisor"; confirmar em clarify)
 
 ## LangGraph
 
 10. Quais branches são genuinamente independentes e merecem parallelization?
 11. Agent enrichment deve ocorrer por nível de risco ou por insuficiência de evidência?
-12. Human-in-the-loop é obrigatório para todo risco ou apenas para alguns caminhos? (ADR-005 aceito; falta definir se todo risco pausa)
+12. ✅ RESOLVIDO (2026-08-27, ADR-015 / FR-019): pausa humana só para MEDIUM/HIGH; LOW auto-finaliza.
 13. ✅ RESOLVIDO (2026-08-27, ADR-011): sim, o loop `revise → regenera → re-review` entra no V0, com limite de 2. Pendente: a nota realimenta só `recomendar` ou também `avaliar risco`/agente.
 14. A demonstração precisa exibir nodes/estado em tempo real? (tendência: sim, UI mostra etapas + estado; confirmar)
 
