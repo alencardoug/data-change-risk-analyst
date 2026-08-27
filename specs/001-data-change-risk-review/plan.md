@@ -26,7 +26,9 @@ every run. This is architecture hypothesis **A (workflow-first)** from `ARCHITEC
 
 **Primary Dependencies**:
 - `langgraph`, `langgraph-checkpoint-postgres` — graph, state, `interrupt`/`resume`, `PostgresSaver`
-- `langchain-core`, `langchain-openai` — `ChatOpenAI`, structured output, tool binding (ADR-019; provider-swappable)
+- `langchain-core`, `langchain-openai`, `langchain` — `ChatOpenAI`, structured output, tool binding,
+  `create_agent` (ADR-019 provider-swappable; ADR-021)
+- `mcp`, `langchain-mcp-adapters` — V1 increment only (ADR-020): one evidence tool over a local MCP server
 - `langgraph.prebuilt` (`create_react_agent`) — bounded investigator agent
 - `pydantic` v2 — all domain contracts and LLM structured output
 - `psycopg[binary]` v3 — `analysis_record` persistence (thin repository, parametrized SQL)

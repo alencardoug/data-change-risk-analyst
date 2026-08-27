@@ -57,8 +57,14 @@ def make_nodes(deps: GraphDeps) -> dict:
 
     def collect_usage(state: GraphState) -> dict:
         sc = state["structured_change"]
-        items = read_downstream_usage(deps.dataset, sc.target_table, _target_column(sc))
-        return {"evidence": items, "step_log": [f"collect_usage: {len(items)} item(s)"]}
+        col = _target_column(sc)
+        if deps.usage_reader is not None:  # V1: MCP-backed reader (ADR-020)
+            items = deps.usage_reader(sc.target_table, col)
+            via = " (via MCP)"
+        else:
+            items = read_downstream_usage(deps.dataset, sc.target_table, col)
+            via = ""
+        return {"evidence": items, "step_log": [f"collect_usage{via}: {len(items)} item(s)"]}
 
     def assess_risk(state: GraphState) -> dict:
         sc = state["structured_change"]

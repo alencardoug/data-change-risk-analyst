@@ -157,6 +157,25 @@ Decisão:
 Alternativas: manter Anthropic; suportar ambos como extras opcionais sem default (mais setup). 
 Consequências: `contracts/llm-schemas.md`, `plan.md` (Technical Context), `research.md` §4, `README.md`, `.env.example` e `docs/learning-notes.md` atualizados para OpenAI. Nenhuma mudança em spec (é WHAT/WHY, agnóstica), grafo, regras ou testes determinísticos. T061 passa a rodar contra `gpt-4o`.
 
+## ADR-020 — Incremento V1: uma tool de evidência via MCP
+**Status:** accepted
+
+Contexto: fecha a Q19/Q20 de `OPEN_QUESTIONS` e concretiza o ADR-007 ("MCP como incremento V1"). Objetivo é aprender a fronteira de interoperabilidade cliente/servidor/transporte, não adicionar orquestração.
+Decisão:
+- **Uma** tool — `get_downstream_usage` — passa a rodar num servidor MCP local (`FastMCP`, transporte stdio, `python -m dcra.mcp.server`). `get_asset_metadata` e `get_dependencies` continuam locais. Assim o antes/depois cabe num diff e numa linha de step-log.
+- Ponto de troca: `GraphDeps.usage_reader` (callable `(table, column) -> list[EvidenceItem]`). `None` ⇒ o nó `collect_usage` usa `read_downstream_usage` local; setado ⇒ usa `dcra.mcp.client.read_downstream_usage_via_mcp`. `production_deps` liga quando `DCRA_USAGE_VIA_MCP=1`.
+- **Servidor indisponível degrada como fonte desabilitada** (FR-024): o cliente captura qualquer erro e devolve um `EvidenceItem` `UNAVAILABLE` (sem payload, nada inventado) — o grafo ainda chega ao gate humano, com fator `EVIDENCE_UNAVAILABLE` e confiança `REDUCED`.
+- Deps novas: `mcp`, `langchain-mcp-adapters`, `langchain` (esta última também para o ADR-021).
+Alternativas: todas as tools via MCP (complexidade operacional sem ganho de aprendizado); integração externa em vez de tool de domínio (mais setup, foge do escopo).
+Consequências: `src/dcra/mcp/{server,client}.py`, `tests/mcp/` (round-trip vs reader local + caminho "indisponível" + costura no grafo), `docs/mcp.md`. Off por padrão — os 56 testes determinísticos e o comportamento do V0 não mudam. Resultados MCP são byte-a-byte iguais ao reader local (teste garante).
+
+## ADR-021 — `create_react_agent` → `langchain.agents.create_agent`
+**Status:** accepted
+
+Contexto: T072. `langgraph.prebuilt.create_react_agent` foi deprecado na LangGraph V1 (remoção na V2), com aviso para migrar para `langchain.agents.create_agent`.
+Decisão: `src/dcra/agent/investigator.py` passa a usar `from langchain.agents import create_agent`, com as restrições do agente no `system_prompt=` e a tarefa concreta na mensagem `human`. `recursion_limit` continua no `config=`. Dep `langchain>=1.0` adicionada.
+Consequências: warning some; `tests/llm_integration/test_investigator_agent.py` verde contra `gpt-4o`. Nenhuma mudança de comportamento observável (mesmo loop read-only limitado).
+
 ## Template
 
 ```text

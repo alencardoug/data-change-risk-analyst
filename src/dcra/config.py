@@ -20,6 +20,7 @@ class Settings:
     database_url: str | None = None
     langsmith_tracing: bool = False
     revision_limit: int = 2
+    usage_via_mcp: bool = False  # V1 (ADR-020): read downstream usage through a local MCP server
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -29,4 +30,5 @@ class Settings:
             database_url=os.getenv("DATABASE_URL") or None,
             langsmith_tracing=os.getenv("LANGSMITH_TRACING", "").lower() in ("1", "true", "yes"),
             revision_limit=int(os.getenv("DCRA_REVISION_LIMIT", "2")),
+            usage_via_mcp=os.getenv("DCRA_USAGE_VIA_MCP", "").lower() in ("1", "true", "yes"),
         )

@@ -135,9 +135,11 @@ See `make help` for shortcuts.
 | `src/dcra/graph/` | state + reducers, nodes, routing, `build_graph` |
 | `src/dcra/persistence/` | `PostgresSaver` checkpointer + `analysis_record` repository |
 | `src/dcra/app/streamlit_app.py` | the demo UI |
+| `src/dcra/mcp/` | V1 increment (off by default): one evidence tool via a local MCP server — see `docs/mcp.md` |
 | `specs/001-data-change-risk-review/` | the SDD artifacts (spec, plan, data-model, contracts, tasks) — the source of truth |
 | `docs/learning-notes.md` | per-concept: what / why / simpler alternative / trade-off / where / how tested |
 | `docs/observability.md` | reading a LangSmith trace for one case |
+| `docs/mcp.md` | the MCP increment: before/after, what MCP adds and does not add |
 
 The root `*_SEED.md` / `DISCOVERY_NOTES.md` / `DECISIONS.md` files are the discovery record that
 produced the spec.
