@@ -24,8 +24,8 @@
 
 - [x] **D-10** Executar `/speckit-tasks`. → `specs/001-data-change-risk-review/tasks.md` (64 tarefas, 6 fases).
 - [x] **D-11** Mapear cada task a requisito e objetivo de aprendizado. → refs FR + "Learning objectives covered" por fase (revisão formal no D-12).
-- [ ] **D-12** Executar `/speckit-analyze`.
-- [ ] **D-13** Corrigir inconsistências/gaps antes de implementação.
+- [x] **D-12** Executar `/speckit-analyze`. → 0 CRITICAL / 0 HIGH; 3 MEDIUM + 5 LOW. Relatório na conversa.
+- [x] **D-13** Corrigir inconsistências/gaps antes de implementação. → G1 (T065), G2 (T066), A1 (T030 + research §5) aplicados. C1/A2/I1/U1/G3 aceitos como não-bloqueantes.
 
 ## Gate de implementação
 

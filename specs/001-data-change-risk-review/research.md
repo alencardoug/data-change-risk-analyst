@@ -93,6 +93,14 @@ get_dependencies, get_downstream_usage])`, invoked by the `investigate` node **o
 restricts it to filling the identified gap and returning findings as `EvidenceItem`s. The agent
 has no write/DDL tools.
 
+**`evidence_gap` — concrete rule** (set in `assess_risk`, closes analyze finding A1): the gap is
+`True` **iff** `operation ∈ {DROP_COLUMN, ALTER_COLUMN}` **and** at least one `DEPENDENCY` or
+`DOWNSTREAM_USAGE` evidence item has `status == UNAVAILABLE`. `ADD_INDEX` never sets the gap
+(low blast radius); a fully-obtained evidence set never sets it; `ASSET_NOT_FOUND` is HIGH but
+not a gap — a missing asset is not something a read-only agent can recover, so the case goes
+straight to human review. This keeps "does the agent run?" a deterministic, testable function of
+the evidence, not a model judgement.
+
 **Rationale**: this is the one place autonomy earns its place (FR-010); constraining the tool
 list and recursion keeps it safe and predictable (Constitution II) and keeps the trace legible
 for the "how do you observe an agent" interview question.

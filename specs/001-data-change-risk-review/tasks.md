@@ -77,7 +77,7 @@ unavailable), risk + factors, recommendation.
 
 - [ ] T023 [P] [US1] e2e `tests/e2e/test_us1_low_autofinalize.py` (S1): fake model interprets `add index`; asserts LOW, `reviewed=False`, `outcome=AUTO_FINALIZED`, exactly one record, `step_log` ordered
 - [ ] T024 [P] [US1] e2e `tests/e2e/test_us1_evidence_unavailable.py` (S4): `usage` source disabled → `DOWNSTREAM_USAGE` items `UNAVAILABLE`, `evidence_gap` set, investigate runs, `Recommendation.confidence == REDUCED`
-- [ ] T025 [P] [US1] e2e `tests/e2e/test_us1_unknown_asset.py` (S5): absent asset → `ASSET_NOT_FOUND` factor, category HIGH, graph ends after `recommend` (no finalize in US1 scope)
+- [ ] T025 [P] [US1] e2e `tests/e2e/test_us1_unknown_asset.py` (S5): absent asset → `ASSET_NOT_FOUND` factor, category HIGH, graph ends after `recommend` (US1 scope only — US2 repoints non-LOW to `human_review`; the gate-reach assertion for this case is T065)
 - [ ] T026 [P] [US1] e2e `tests/e2e/test_us1_interpretation_error.py` (S7): unparseable text → `InterpretationError`, no `AnalysisRecord` written
 - [ ] T027 [P] [US1] llm_integration `tests/llm_integration/test_interpretation.py` (opt-in): real model returns a schema-valid `StructuredChange` for 3 sample sentences
 
@@ -85,7 +85,7 @@ unavailable), risk + factors, recommendation.
 
 - [ ] T028 [US1] Implement `interpret` node in `src/dcra/graph/nodes.py`: call `structured(model, StructuredChange)`, set state + `step_log`, raise `InterpretationError` on invalid output (depends on T015, T020)
 - [ ] T029 [P] [US1] Implement `collect_asset`, `collect_deps`, `collect_usage` nodes in `src/dcra/graph/nodes.py`: each calls its tool, writes `evidence` via `merge_evidence` (depends on T011, T020)
-- [ ] T030 [US1] Implement `assess_risk` node: call `rules.assess`, write `risk` + append `risk_history`, set `evidence_gap` when required evidence missing/unavailable and material (depends on T013)
+- [ ] T030 [US1] Implement `assess_risk` node: call `rules.assess`, write `risk` + append `risk_history`, then set `evidence_gap = True` **iff** the operation is `DROP_COLUMN` or `ALTER_COLUMN` **and** at least one of the `DEPENDENCY` or `DOWNSTREAM_USAGE` evidence items has `status == UNAVAILABLE` (an `ADD_INDEX` or a fully-obtained evidence set never sets the gap; `ASSET_NOT_FOUND` is HIGH but not a "gap" — the agent cannot recover a missing asset). Record this rule in `research.md` §5. (depends on T013)
 - [ ] T031 [US1] Implement `investigate` node: `create_react_agent(model, [3 read-only tools])` with `recursion_limit≈8` + gap-focused system prompt; parse results into `EvidenceItem`s, merge, clear `evidence_gap`, optionally re-run `rules.assess` once (depends on T011, T015, T030; contract: `contracts/llm-schemas.md` §Call 3)
 - [ ] T032 [P] [US1] llm_integration `tests/llm_integration/test_investigator_agent.py` (opt-in): agent only calls the 3 allowed tools and terminates within the recursion cap
 - [ ] T033 [US1] Implement `recommend` node: `structured(model, Recommendation)` with evidence+risk+optional note; node assigns `version`, forces `confidence=REDUCED` when any evidence `UNAVAILABLE`, forces `ai_generated=True`, repairs invalid `mitigations` (depends on T015, T020)
@@ -111,13 +111,15 @@ rejects; the run resumes (including after an app/DB restart) and writes one `Ana
 keeps the AI recommendation separate from the human decision.
 
 **Independent Test**: `pytest tests/e2e/test_us2_*.py` — S2 (MEDIUM → approve → APPROVED), reject
-variant (→ REJECTED), S8 (reach gate, restart, reopen by `thread_id`, decide).
+variant (→ REJECTED), S8 (reach gate, restart, reopen by `thread_id`, decide), plus the HIGH /
+reduced-confidence cases reaching the gate (T065).
 
 ### Tests for User Story 2
 
 - [ ] T040 [P] [US2] e2e `tests/e2e/test_us2_approve_reject.py` (S2): interrupt payload has risk/recommendation/evidence/options; resume APPROVE → `outcome=APPROVED`, `reviewed=True`; resume REJECT → `REJECTED`; AI vs human fields distinct in the record
 - [ ] T041 [P] [US2] e2e `tests/e2e/test_us2_resume_after_restart.py` (S8): run to interrupt, drop the in-process graph, rebuild from the same checkpointer + `thread_id`, resume, finalize
 - [ ] T042 [P] [US2] Unit test `tests/unit/test_state_transitions.py`: `CaseStatus` progression INTERPRETING→…→AWAITING_REVIEW→FINALIZED; no finalize before a review action for MEDIUM/HIGH
+- [ ] T065 [P] [US2] e2e `tests/e2e/test_us2_high_paths_reach_gate.py` (closes analyze finding G1 — FR-020, FR-024, SC-009): with US2 wiring in place, assert (a) **S5** unknown-asset case → category HIGH, `ASSET_NOT_FOUND` factor present **in the interrupt payload**, `human_review` reached, no `AnalysisRecord` before a decision; (b) **S4** `usage` source disabled → `human_review` reached with `recommendation.confidence == REDUCED` and the `UNAVAILABLE` evidence items visible in the payload; approval is offered (not auto-blocked)
 
 ### Implementation for User Story 2
 
@@ -144,7 +146,7 @@ limit the gate offers only approve/reject.
 
 **Independent Test**: `pytest tests/e2e/test_us3_*.py` — S3 (return "evidence missing" → MEDIUM→HIGH
 → v2 → approve), S6 (two returns → RETURN option withdrawn), unmarked-return variant (risk
-unchanged, new recommendation version).
+unchanged, new recommendation version), empty-note variant (no cycle consumed — T066).
 
 ### Tests for User Story 3
 
@@ -152,10 +154,11 @@ unchanged, new recommendation version).
 - [ ] T050 [P] [US3] e2e `tests/e2e/test_us3_unmarked_return.py`: RETURN + `evidence_missing=False` → only `recommend` re-runs; `risk` identical; `recommendations` has 2 versions
 - [ ] T051 [P] [US3] e2e `tests/e2e/test_us3_revision_limit.py` (S6): after 2 returns, interrupt payload `options` excludes RETURN; `revisions_remaining==0`; ≤ limit+1 entries to `human_review`
 - [ ] T052 [P] [US3] Unit test `tests/unit/test_routing.py::test_route_after_review_return`: both RETURN modes route correctly and increment `revision_count`; limit reached → no RETURN target ever seen
+- [ ] T066 [P] [US3] e2e `tests/e2e/test_us3_empty_note.py` (closes analyze finding G2 — FR-016): RETURN with a blank / whitespace-only note → system re-presents the review gate asking for specifics; `revision_count` **unchanged**; no new `Recommendation` version created; a subsequent substantive RETURN then works normally
 
 ### Implementation for User Story 3
 
-- [ ] T053 [US3] Extend `human_review` payload: compute `revisions_remaining`, include/exclude `RETURN` in `options`; accept `ReviewAction.note` + `evidence_missing` on resume; enforce substantive-note rule (FR-016) without consuming a cycle (depends on T043, T009)
+- [ ] T053 [US3] Extend `human_review` payload: compute `revisions_remaining`, include/exclude `RETURN` in `options`; accept `ReviewAction.note` + `evidence_missing` on resume; enforce substantive-note rule (FR-016) without consuming a cycle — a blank or whitespace-only note re-presents the gate asking for specifics and does **not** increment `revision_count` or create a recommendation version (verified by T066) (depends on T043, T009)
 - [ ] T054 [US3] Extend `route_after_review`: RETURN & !evidence_missing & under limit → `recommend`; RETURN & evidence_missing & under limit → the 3 collectors; increment `revision_count` in the router (depends on T044)
 - [ ] T055 [US3] Rewire `build.py` edges for the revision loop (review → collectors, review → recommend); confirm `recursion_limit` on invoke accommodates limit+1 review cycles (depends on T046, T054)
 - [ ] T056 [US3] `assess_risk` / `recommend`: honor `pass_number` increment and `prompted_by_note` on re-runs; `risk_history` gains an entry per re-assessment (depends on T030, T033)
@@ -185,6 +188,7 @@ state, note-driven re-entry, why the guard lives in code not the prompt.
 - **Phase 1 (Setup)** → **Phase 2 (Foundational)** → **Phase 3 (US1 / MVP)** → **Phase 4 (US2)** → **Phase 5 (US3)** → **Phase 6 (Polish)**
 - US2 depends on US1's `build.py` graph (`route_after_recommend` non-LOW edge is repointed in T046).
 - US3 depends on US2's `human_review` node and router.
+- T065 (Phase 4) depends on T046 (non-LOW → `human_review` wiring). T066 (Phase 5) depends on T053/T054.
 - Within a phase, `[P]` tasks touch different files and can run together.
 
 ### Parallel opportunities
@@ -192,8 +196,11 @@ state, note-driven re-entry, why the guard lives in code not the prompt.
 - Setup: T003, T004, T005 together.
 - Foundational: T006, T009, T010 together; then T008, T012, T014, T021 (tests) together; T015, T016, T022 together.
 - US1 tests T023–T027 together; `collect_*` nodes T029 are one task (same file) but internally independent.
-- US2 tests T040–T042 together. US3 tests T049–T052 together.
+- US2 tests T040–T042 + T065 together. US3 tests T049–T052 + T066 together.
 - Polish: T058, T059, T060, T062, T063 together.
+
+> Note: T065 / T066 were added after `/speckit-analyze` (findings G1 / G2); they sit in Phases 4
+> and 5 respectively despite the higher numbers. A1 was applied in place by tightening T030.
 
 ---
 

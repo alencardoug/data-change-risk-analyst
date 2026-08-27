@@ -153,8 +153,9 @@ Guards & invariants:
 - `revisions` (a.k.a. `revision_count`) starts at 0; both RETURN modes increment it; capped at
   `limit` (default 2, `DCRA_REVISION_LIMIT`). Max entries into `AWAITING_REVIEW` = `limit + 1`
   (SC-008).
-- `evidence_gap` is set by `assess_risk` (required evidence `UNAVAILABLE` or missing and
-  material to the recommendation) and cleared after `INVESTIGATING`.
+- `evidence_gap` is set by `assess_risk` per the concrete rule in `research.md` §5
+  (`operation ∈ {DROP_COLUMN, ALTER_COLUMN}` **and** some `DEPENDENCY`/`DOWNSTREAM_USAGE` item is
+  `UNAVAILABLE`) and cleared after `INVESTIGATING`.
 - `INVESTIGATING` may trigger at most one immediate re-run of the deterministic rules within the
   same pass; it does not itself loop.
 - Transition to `FINALIZED` writes the `AnalysisRecord` and is terminal.
