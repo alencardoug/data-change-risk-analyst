@@ -144,3 +144,18 @@ def requires_llm():
     return pytest.mark.skipif(
         os.getenv("RUN_LLM_TESTS") != "1", reason="set RUN_LLM_TESTS=1 to run LLM tests"
     )
+
+
+def reachable_db_url() -> str | None:
+    """DATABASE_URL only if a Postgres actually answers on it — so DB-gated tests skip
+    (rather than error) when the URL is set in .env but `docker compose` is down."""
+    url = os.getenv("DATABASE_URL")
+    if not url:
+        return None
+    try:
+        import psycopg
+
+        with psycopg.connect(url, connect_timeout=2):
+            return url
+    except Exception:
+        return None
