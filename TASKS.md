@@ -31,4 +31,8 @@
 
 - [x] **D-14** Confirmar que não existe implementação antecipada servindo de requisito implícito. → scaffold estava vazio; código nasceu do `tasks.md`.
 - [x] **D-15** Executar `/speckit-implement`. → **V0 completo**: 65/66 tarefas (Fases 1–6). 50 testes determinísticos verdes (fake model + `MemorySaver`, sem API key/DB) + 2 DB-gated + `llm_integration` opt-in; ruff limpo. Única tarefa aberta: **T061** = rodar S1–S8 contra modelo real uma vez (precisa da chave Anthropic + Postgres do usuário).
-- [x] **D-16** Executar `/speckit-converge`. → `tasks_appended`: **Phase 7: Convergence** (T067–T071) em `tasks.md`. 0 CRITICAL; 1 HIGH (SC-005: resume real com PostgresSaver sem teste), 1 MEDIUM (round-trip do repositório não rodado contra Postgres), 3 LOW (reopen do Streamlit, local do agente investigador, descrições dos fatores). Nenhuma violação de constituição.
+- [x] **D-16** Executar `/speckit-converge`. → `tasks_appended`: **Phase 7: Convergence** (T067–T071), depois **implementada e verde** com Postgres real via Docker: resume restart-safe com `PostgresSaver` (T067), round-trip do `PostgresRepository` (T068), caminho "reopen" (T069), agente investigador movido para `src/dcra/agent/investigator.py` (T070), asserção das descrições dos fatores (T071). **56 testes passando com DB, 53 sem DB.** Nenhuma violação de constituição.
+
+## Estado final
+
+Todas as tarefas de `specs/001-data-change-risk-review/tasks.md` concluídas **exceto T061** (rodar S1–S8 contra modelo Anthropic real uma vez — precisa da `ANTHROPIC_API_KEY` do usuário; os 8 cenários já rodam automatizados com fake model). Postgres de dev fica de pé via `docker compose up -d` (parar com `docker compose down`).

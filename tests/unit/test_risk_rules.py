@@ -87,6 +87,32 @@ def test_reproducible():
     assert [f.code for f in a.factors] == [f.code for f in b.factors]
 
 
+def test_every_fired_factor_has_a_readable_description():
+    """T071 — SC-001: a reviewer must be able to explain the rating from the factors shown,
+    so each factor needs a real sentence, not just a code."""
+    cases = [
+        (DROP, [EvidenceItem(kind=EvidenceKind.ASSET_METADATA, key="orders.x",
+                             status=EvidenceStatus.UNAVAILABLE, source="catalog",
+                             payload={"reason": "not_found"})]),
+        (DROP, [_meta(in_primary_key=True)]),
+        (DROP, [_meta(), _dep("foreign_key")]),
+        (DROP, [_meta(), _dep("view")]),
+        (DROP, [_meta(), _usage(5)]),
+        (DROP, [_meta(), _usage(0)]),
+        (DROP, [_meta(), _unavail(EvidenceKind.DOWNSTREAM_USAGE)]),
+        (IDX, [_meta(), _usage(10)]),
+        (IDX, [_meta(), _usage(500)]),
+    ]
+    for change, evidence in cases:
+        for f in assess(change, evidence).factors:
+            desc = f.description.strip()
+            assert desc, f.code
+            assert desc[0].isupper() or desc[0].isdigit(), f.code
+            assert desc.endswith("."), f.code
+            assert len(desc.split()) >= 4, f.code
+            assert desc.lower() != f.code.lower().replace("_", " "), f.code
+
+
 def test_evidence_gap_rule_a1():
     # DROP/ALTER + a dependency/usage source unavailable -> gap
     assert has_evidence_gap(DROP, [_meta(), _unavail(EvidenceKind.DEPENDENCY)]) is True

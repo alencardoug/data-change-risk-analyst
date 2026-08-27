@@ -13,6 +13,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from dcra.agent.investigator import run_investigation  # re-exported for callers
 from dcra.config import Settings
 from dcra.domain.enums import Confidence, Disposition, EvidenceStatus
 from dcra.domain.models import (
@@ -22,6 +23,13 @@ from dcra.domain.models import (
     RiskAssessment,
     StructuredChange,
 )
+
+__all__ = [
+    "build_chat_model",
+    "interpret",
+    "draft_recommendation",
+    "run_investigation",
+]
 
 _INTERPRET_SYS = (
     "You convert a one-line data-change request into a structured change. "
@@ -124,33 +132,3 @@ def _normalise_rec(
         data["rationale"] = (data["rationale"] + " (mitigations were unspecified)").strip()
     return Recommendation.model_validate(data)
 
-
-def run_investigation(
-    model: Any, *, change: StructuredChange, tools: list, gap_note: str
-) -> list[EvidenceItem]:
-    """Bounded read-only ReAct agent. Returns any additional EvidenceItems it gathered."""
-    from langgraph.prebuilt import create_react_agent
-
-    agent = create_react_agent(model, tools)
-    prompt = (
-        "You are filling a specific evidence gap for a data-change risk review. "
-        f"Change: {change.model_dump(mode='json')}. Gap: {gap_note}. "
-        "Use ONLY the provided read-only tools. Do not speculate. "
-        "When you have what the tools can give, stop."
-    )
-    state = agent.invoke(
-        {"messages": [("human", prompt)]},
-        config={"recursion_limit": 8},
-    )
-    found: list[EvidenceItem] = []
-    for msg in state["messages"]:
-        if getattr(msg, "type", None) == "tool":
-            content = msg.content
-            items = content if isinstance(content, list) else [content]
-            for raw in items:
-                if isinstance(raw, dict):
-                    try:
-                        found.append(EvidenceItem.model_validate(raw))
-                    except ValidationError:
-                        continue
-    return found

@@ -19,7 +19,8 @@ def open_checkpointer(database_url: str | None):
 
     from langgraph.checkpoint.postgres import PostgresSaver
 
-    with PostgresSaver.from_conn_string(database_url, serde=dcra_serde()) as saver:
+    with PostgresSaver.from_conn_string(database_url) as saver:
+        saver.serde = dcra_serde()
         saver.setup()
         yield saver
 
@@ -34,6 +35,7 @@ def make_checkpointer(database_url: str | None) -> Any:
         return MemorySaver(serde=dcra_serde())
     from langgraph.checkpoint.postgres import PostgresSaver
 
-    saver = PostgresSaver.from_conn_string(database_url, serde=dcra_serde()).__enter__()
+    saver = PostgresSaver.from_conn_string(database_url).__enter__()
+    saver.serde = dcra_serde()
     saver.setup()
     return saver
