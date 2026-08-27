@@ -31,4 +31,4 @@
 
 - [x] **D-14** Confirmar que não existe implementação antecipada servindo de requisito implícito. → scaffold estava vazio; código nasceu do `tasks.md`.
 - [x] **D-15** Executar `/speckit-implement`. → **V0 completo**: 65/66 tarefas (Fases 1–6). 50 testes determinísticos verdes (fake model + `MemorySaver`, sem API key/DB) + 2 DB-gated + `llm_integration` opt-in; ruff limpo. Única tarefa aberta: **T061** = rodar S1–S8 contra modelo real uma vez (precisa da chave Anthropic + Postgres do usuário).
-- [ ] **D-16** Executar `/speckit-converge` — comparar código × spec/plan/tasks e registrar gaps restantes.
+- [x] **D-16** Executar `/speckit-converge`. → `tasks_appended`: **Phase 7: Convergence** (T067–T071) em `tasks.md`. 0 CRITICAL; 1 HIGH (SC-005: resume real com PostgresSaver sem teste), 1 MEDIUM (round-trip do repositório não rodado contra Postgres), 3 LOW (reopen do Streamlit, local do agente investigador, descrições dos fatores). Nenhuma violação de constituição.

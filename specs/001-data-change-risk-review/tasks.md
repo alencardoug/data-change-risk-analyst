@@ -214,3 +214,16 @@ logical group; each `[US#]` phase ends at an independently demoable checkpoint.
 **Gate before `/speckit-implement`**: run `/speckit-analyze` to cross-check constitution ↔ spec ↔
 plan ↔ tasks (every FR mapped to a task; every task traceable to an FR or a stated learning
 objective; no component beyond the plan).
+
+---
+
+## Phase 7: Convergence
+
+Appended by `/speckit-converge` (2026-08-27) after the V0 implementation. These close gaps
+between the implemented code and the spec/plan; run `/speckit-implement` to complete them.
+
+- [ ] T067 [P] Add a DB-gated e2e that proves restart-safe resume with `PostgresSaver`: run a MEDIUM case to the `interrupt()`, then in a **fresh process / new connection** (not the same in-process saver) resume from the `thread_id` and finalize — per SC-005 / FR-012 (partial). Today `tests/e2e/test_us2_resume_after_restart.py` only rebuilds the graph object against one shared `MemorySaver`.
+- [ ] T068 Verify `PostgresRepository` round-trip against a live Postgres: run `tests/unit/test_repository.py` green, confirm `get()` reconstructs an `AnalysisRecord` from the jsonb columns, and fix any (de)serialization gap — per plan: persistence decision / T019 (partial; currently DB-gated and unrun).
+- [ ] T069 [P] Cover the Streamlit "Reopen a case by id" path: a test (or scripted check) that a reopened `thread_id` in `AWAITING_REVIEW` yields the review payload via `is_awaiting_review` + `review_payload` and can be resumed to a final record — per T048 / plan: streamlit reopen (partial).
+- [ ] T070 [P] Reconcile the investigator agent location: `run_investigation` lives in `src/dcra/llm/factory.py`, but `plan.md` Project Structure names `src/dcra/agent/investigator.py`. Either move it there (re-export from `factory` for callers) or add the consolidation to `plan.md`/ADR-018 — per plan: Project Structure (contradicts, minor).
+- [ ] T071 [P] Add a unit assertion that every `RiskFactor` a predicate can emit has a non-empty, sentence-form `description` (not just a stable `code`) — supports SC-001 ("a reviewer can explain the rating from the factors shown") (partial).
