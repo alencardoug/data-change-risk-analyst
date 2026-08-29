@@ -268,3 +268,68 @@ SELECT change_request->>'raw_text', outcome FROM analysis_record;   -- extrair u
 
 `->>'campo'` extrai um valor de um `JSONB` como texto — é a forma mais rápida de "espiar" dentro
 das colunas JSON sem escrever Python.
+
+## Conectando com uma ferramenta gráfica (DBeaver CE)
+
+Se preferir navegar as tabelas visualmente em vez de digitar SQL no `psql`, o
+[DBeaver Community Edition](https://dbeaver.io/download/) (gratuito) funciona bem aqui — é só um
+Postgres comum, sem nada de especial na conexão.
+
+### Onde estão o usuário, a senha e os outros parâmetros
+
+Não há segredo nenhum escondido — são credenciais de desenvolvimento local, fixas, já commitadas
+no próprio repositório em dois lugares (que precisam bater um com o outro):
+
+- **`docker-compose.yml`** (raiz do projeto) — é quem *define* essas credenciais, no serviço
+  `postgres`:
+  ```yaml
+  environment:
+    POSTGRES_USER: dcra
+    POSTGRES_PASSWORD: dcra
+    POSTGRES_DB: dcra
+  ports:
+    - "5432:5432"
+  ```
+- **`.env`** (na raiz, gerado a partir de `.env.example`) — é quem *usa* essas credenciais,
+  empacotadas numa única URL de conexão:
+  ```
+  DATABASE_URL=postgresql://dcra:dcra@localhost:5432/dcra
+  ```
+  O formato é `postgresql://<usuário>:<senha>@<host>:<porta>/<banco>` — os mesmos 5 parâmetros
+  que o DBeaver pede num formulário, só que concatenados numa linha só.
+
+### Parâmetros para o formulário "New Database Connection" do DBeaver
+
+| Campo no DBeaver | Valor |
+|---|---|
+| Driver | **PostgreSQL** |
+| Host | `localhost` |
+| Port | `5432` |
+| Database | `dcra` |
+| Username | `dcra` |
+| Password | `dcra` |
+| Save password | marque, para não digitar de novo |
+
+Passo a passo:
+
+1. Confirme que o container está de pé: `docker compose up -d` (ou `make db`).
+2. No DBeaver: **Database → New Database Connection** (ou o ícone de tomada com `+`).
+3. Escolha **PostgreSQL** na lista de drivers e clique **Next**.
+4. Preencha os 5 campos da tabela acima na aba "Main".
+5. Clique **Test Connection...** — na primeira vez, o DBeaver oferece baixar o driver JDBC do
+   Postgres automaticamente; aceite.
+6. **Finish**. As tabelas aparecem em
+   `dcra` → `Databases` → `dcra` → `Schemas` → `public` → `Tables` — as 5 tabelas descritas
+   neste documento (`analysis_record`, `checkpoints`, `checkpoint_blobs`, `checkpoint_writes`,
+   `checkpoint_migrations`).
+
+A partir daí, clicar duas vezes numa tabela abre a grade de dados (aba "Data"), e o editor SQL
+(**SQL Editor → New SQL script**, ou `Ctrl+]`) aceita as mesmas queries de exemplo listadas acima
+— inclusive o `->>'campo'` para ler dentro das colunas `JSONB`. O DBeaver também tem um botão
+para formatar JSON dentro de uma célula (clique na célula, "View/Format → JSON") — útil para ler
+`evidence`, `risk_assessments`, etc. sem sair da ferramenta.
+
+> Se você mudou a senha/porta no seu próprio `.env` (por exemplo, para rodar num Postgres externo
+> em vez do `docker compose` local), os valores acima deixam de valer — nesse caso, os parâmetros
+> corretos são sempre os que estiverem em `DATABASE_URL` no seu `.env` naquele momento, não os
+> desta tabela.
