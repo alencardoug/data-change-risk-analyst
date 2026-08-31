@@ -184,7 +184,7 @@ flowchart TD
     Q3 -->|REJECT| FIN3[[REJECTED]]
     Q3 -->|RETURN + nota| RC
     Q3 -->|RETURN + evidência ausente| BACK[reassess: re-coleta<br/>e re-avalia o risco] --> RC
-    Q3 -.->|revisões > 2| FIN4[[finalize<br/>guarda anti-loop]]
+    Q3 -.->|acima do limite de revisões| FIN4[[finalize<br/>guarda anti-loop]]
 ```
 
 **Ordem de execução e autonomia:**
