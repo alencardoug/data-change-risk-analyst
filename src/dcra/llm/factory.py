@@ -44,7 +44,12 @@ _RECOMMEND_SYS = (
     "structured change, the evidence gathered (including items marked unavailable), the risk "
     "category and its factors, and possibly a reviewer note. Use ONLY the supplied evidence and "
     "factors; do not invent dependencies or usage. Choose disposition PROCEED, "
-    "PROCEED_WITH_MITIGATION (then list mitigations), or DO_NOT_PROCEED."
+    "PROCEED_WITH_MITIGATION (then list mitigations), or DO_NOT_PROCEED.\n"
+    "Write `rationale` and every entry in `mitigations` in Brazilian Portuguese (pt-BR). "
+    "Keep key/technical terms and identifiers in English — table and column names, the "
+    "disposition values (PROCEED / PROCEED_WITH_MITIGATION / DO_NOT_PROCEED), the risk levels "
+    "(LOW / MEDIUM / HIGH), factor codes, and SQL keywords — but the surrounding prose must be "
+    "Portuguese."
 )
 
 
@@ -118,7 +123,7 @@ def draft_recommendation(
         except (ValidationError, ValueError):
             rec = Recommendation(
                 disposition=Disposition.DO_NOT_PROCEED,
-                rationale="The recommendation draft could not be produced; a human decision is required.",
+                rationale="Não foi possível gerar o rascunho da recomendação; uma decisão humana é necessária.",
             )
     return _normalise_rec(rec, version=version, note=note, reduced=reduced)
 
@@ -140,6 +145,6 @@ def _normalise_rec(
         data["confidence"] = Confidence.REDUCED
     if data["disposition"] == Disposition.PROCEED_WITH_MITIGATION and not data["mitigations"]:
         data["disposition"] = Disposition.DO_NOT_PROCEED
-        data["rationale"] = (data["rationale"] + " (mitigations were unspecified)").strip()
+        data["rationale"] = (data["rationale"] + " (mitigações não especificadas)").strip()
     return Recommendation.model_validate(data)
 

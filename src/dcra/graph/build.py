@@ -120,3 +120,46 @@ def pending_interrupt(result: Any) -> dict | None:
 def is_awaiting_review(compiled: Any, thread_id: str) -> bool:
     snap = compiled.get_state({"configurable": {"thread_id": thread_id}})
     return bool(snap.next) and "human_review" in snap.next
+
+
+def list_open_cases(
+    compiled: Any, *, limit: int = 5, scan: int = 60
+) -> list[tuple[str, str]]:
+    """The most recent cases paused at the human-review gate, newest first.
+
+    Returns ``(thread_id, label)`` pairs. ``scan`` bounds how many raw checkpoints we walk
+    before giving up (there are several per thread); ``limit`` caps the returned list. Reads
+    only the checkpointer — no schema of its own. Best-effort: returns ``[]`` on any error or
+    when the checkpointer cannot enumerate threads (e.g. MemorySaver in another process)."""
+    try:
+        checkpointer = compiled.checkpointer
+        # Materialise fully: calling compiled.get_state() while the .list() generator is still
+        # open would re-enter the saver's non-reentrant lock on the same connection (deadlock).
+        tuples = list(checkpointer.list(None, limit=scan))
+    except Exception:
+        return []
+
+    seen: set[str] = set()
+    out: list[tuple[str, str]] = []
+    for tup in tuples:
+        tid = tup.config.get("configurable", {}).get("thread_id")
+        if not tid or tid in seen:
+            continue
+        seen.add(tid)
+        try:
+            snap = compiled.get_state({"configurable": {"thread_id": tid}})
+        except Exception:
+            continue
+        if not (snap.next and "human_review" in snap.next):
+            continue
+        vals = snap.values or {}
+        cr = vals.get("change_request")
+        risk = vals.get("risk")
+        raw = (getattr(cr, "raw_text", "") or "").strip().replace("\n", " ")
+        who = getattr(cr, "submitted_by", "") or "?"
+        cat = risk.category.value if risk else "?"
+        label = f"{raw[:60] or '(sem texto)'} · {cat} · {who}"
+        out.append((tid, label))
+        if len(out) >= limit:
+            break
+    return out

@@ -1,0 +1,5 @@
+# Oculta o botão "Deploy" (e o menu de deploy) da barra superior do Streamlit.
+# "minimal" mantém o menu ⋮ com itens úteis (Rerun, Clear cache, Settings) mas remove o Deploy.
+# Use "viewer" para esconder também o menu ⋮, ou "developer" para mostrar tudo.
+[client]
+toolbarMode = "minimal"

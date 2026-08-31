@@ -33,9 +33,18 @@ def make_checkpointer(database_url: str | None) -> Any:
         from langgraph.checkpoint.memory import MemorySaver
 
         return MemorySaver(serde=dcra_serde())
-    from langgraph.checkpoint.postgres import PostgresSaver
 
-    saver = PostgresSaver.from_conn_string(database_url).__enter__()
-    saver.serde = dcra_serde()
+    from langgraph.checkpoint.postgres import PostgresSaver
+    from psycopg import Connection
+    from psycopg.rows import dict_row
+
+    # Open the connection directly (mirrors PostgresSaver.from_conn_string internals) so its
+    # lifetime is tied to the returned saver. Going through the from_conn_string context
+    # manager and calling __enter__() would leave the manager unreferenced; it gets finalized
+    # immediately, closing the connection before setup() runs.
+    conn = Connection.connect(
+        database_url, autocommit=True, prepare_threshold=0, row_factory=dict_row
+    )
+    saver = PostgresSaver(conn, serde=dcra_serde())
     saver.setup()
     return saver
