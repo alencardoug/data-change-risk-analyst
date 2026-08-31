@@ -511,8 +511,8 @@ with st.expander("Reabrir um caso por id"):
 with st.expander("Tabela `orders` — o Data Warehouse simulado"):
     st.markdown(
         "A ferramenta avalia mudanças propostas nesta tabela. Ela é simulada em código "
-        "(`dcra.evidence.dataset`) — não existe um Postgres `orders` real —, mas a estrutura "
-        "e a linhagem abaixo são exatamente o que alimenta a análise de risco."
+        "(`dcra.evidence.dataset`), mas a estrutura e a linhagem abaixo são exatamente o "
+        "que alimenta a análise de risco."
     )
     st.markdown(_orders_schema_md())
     if st.button("Ver tabela", type="primary"):
