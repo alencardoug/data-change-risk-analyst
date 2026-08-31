@@ -78,6 +78,9 @@ deploy/create-secrets.sh
 # 2. Create the tables in Neon (idempotent)
 deploy/init-db.sh
 
+# 2b. (optional) Load 15 synthetic demo cases for a populated table view
+DATABASE_URL="$DATABASE_URL" uv run python deploy/seed_demo.py
+
 # 3. Build + deploy the app to Cloud Run
 deploy/deploy.sh
 #    -> prints the https://dcra-…-ue.a.run.app URL
