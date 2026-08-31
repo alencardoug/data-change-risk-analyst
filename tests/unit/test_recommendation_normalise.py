@@ -30,4 +30,4 @@ def test_proceed_with_mitigation_but_no_mitigations_is_downgraded():
     )
     out = _normalise_rec(raw, version=1, note=None, reduced=False)
     assert out.disposition == Disposition.DO_NOT_PROCEED
-    assert "mitigations were unspecified" in out.rationale
+    assert "mitigações não especificadas" in out.rationale
