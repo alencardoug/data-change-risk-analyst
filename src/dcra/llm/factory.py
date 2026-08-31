@@ -123,7 +123,10 @@ def draft_recommendation(
         except (ValidationError, ValueError):
             rec = Recommendation(
                 disposition=Disposition.DO_NOT_PROCEED,
-                rationale="Não foi possível gerar o rascunho da recomendação; uma decisão humana é necessária.",
+                rationale=(
+                    "Não foi possível gerar o rascunho da recomendação; "
+                    "uma decisão humana é necessária."
+                ),
             )
     return _normalise_rec(rec, version=version, note=note, reduced=reduced)
 

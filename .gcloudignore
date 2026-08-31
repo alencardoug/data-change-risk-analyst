@@ -1,0 +1,28 @@
+# Scopes `gcloud run deploy --source .` uploads. Same intent as .dockerignore
+# (only pyproject.toml, uv.lock, README.md and src/ reach the build), but this
+# file is what Cloud Build reads. Do NOT let it fall back to .gitignore.
+.git/
+.github/
+.claude/
+.specify/
+.venv/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+tests/
+docs/
+DOCS_PESSOAIS/
+specs/
+deploy/
+public/
+firebase.json
+.firebaserc
+docker-compose.yml
+node_modules/
+*.md
+!README.md
+.env
+.env.*
+!.env.example

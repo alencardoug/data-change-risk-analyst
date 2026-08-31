@@ -11,6 +11,7 @@ dependencies = [
     "langchain-openai>=0.2.10",
     "pydantic>=2.9",
     "psycopg[binary]>=3.2",
+    "psycopg-pool>=3.2",
     "streamlit>=1.40",
     "langsmith>=0.1.140",
     "python-dotenv>=1.0",

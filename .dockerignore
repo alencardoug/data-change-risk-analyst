@@ -1,0 +1,26 @@
+# Build context for the Cloud Run image. Only pyproject.toml, uv.lock,
+# README.md and src/ are actually COPYd; everything else is noise.
+.git/
+.github/
+.claude/
+.specify/
+.venv/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+tests/
+docs/
+DOCS_PESSOAIS/
+specs/
+deploy/
+public/
+firebase.json
+.firebaserc
+docker-compose.yml
+*.md
+!README.md
+.env
+.env.*
+!.env.example

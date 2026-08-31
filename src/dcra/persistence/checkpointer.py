@@ -35,16 +35,24 @@ def make_checkpointer(database_url: str | None) -> Any:
         return MemorySaver(serde=dcra_serde())
 
     from langgraph.checkpoint.postgres import PostgresSaver
-    from psycopg import Connection
     from psycopg.rows import dict_row
+    from psycopg_pool import ConnectionPool
 
-    # Open the connection directly (mirrors PostgresSaver.from_conn_string internals) so its
-    # lifetime is tied to the returned saver. Going through the from_conn_string context
-    # manager and calling __enter__() would leave the manager unreferenced; it gets finalized
-    # immediately, closing the connection before setup() runs.
-    conn = Connection.connect(
-        database_url, autocommit=True, prepare_threshold=0, row_factory=dict_row
+    # A pool (not a single bare connection) so a connection dropped underneath us — an idle
+    # Neon compute suspending, Cloud SQL recycling, a network blip — is discarded and replaced
+    # on the next checkout instead of wedging the app until restart. `check` does a cheap
+    # pre-ping per checkout; `min_size=0` + `max_idle` keep no connection open into a suspended
+    # Neon instance. Opening via the constructor (`open=True`) is fine and lifetime-bound to
+    # the returned saver, which the caller keeps for the process lifetime.
+    pool = ConnectionPool(
+        conninfo=database_url,
+        min_size=0,
+        max_size=4,
+        max_idle=120.0,
+        check=ConnectionPool.check_connection,
+        kwargs={"autocommit": True, "prepare_threshold": 0, "row_factory": dict_row},
+        open=True,
     )
-    saver = PostgresSaver(conn, serde=dcra_serde())
+    saver = PostgresSaver(pool, serde=dcra_serde())
     saver.setup()
     return saver
