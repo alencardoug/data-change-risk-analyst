@@ -75,7 +75,9 @@ export DATABASE_URL='postgresql://…neon.tech/dcra?sslmode=require'
 export OPENAI_API_KEY='sk-…'
 deploy/create-secrets.sh
 
-# 2. Create the tables in Neon (idempotent)
+# 2. Create the tables in Neon (idempotent): analysis_record, the LangGraph
+#    checkpoint tables, and the simulated `orders` warehouse the tool
+#    introspects (deploy/warehouse_schema.sql)
 deploy/init-db.sh
 
 # 3. Build + deploy the app to Cloud Run
@@ -115,6 +117,9 @@ the graph works. After deploying:
 4. Approve at the review gate; confirm `Registro final: APROVADO`.
 5. Reload; open **Reabrir um caso** and check the case shows in the dropdown
    (proves `list_open_cases` reads the checkpointer).
+6. Open the **Tabela `orders`** expander → **Ver tabela**; the caption should
+   say "Leitura ao vivo do banco" (proves `deploy/warehouse_schema.sql` loaded
+   and the collectors read `information_schema`, not the fixture).
 
 ## Not in scope here
 

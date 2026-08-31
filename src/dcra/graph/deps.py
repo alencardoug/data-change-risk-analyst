@@ -9,6 +9,7 @@ from typing import Any, Protocol
 from dcra.config import Settings
 from dcra.domain.models import EvidenceItem, Recommendation, StructuredChange
 from dcra.evidence.dataset import Dataset, default_dataset
+from dcra.evidence.inspector import DatasetInspector, Inspector
 
 
 class Repository(Protocol):
@@ -34,6 +35,12 @@ class GraphDeps:
     # V1 (ADR-020): the downstream-usage read can be swapped for an MCP-backed reader.
     # None ⇒ the graph uses the local `read_downstream_usage(dataset, ...)`.
     usage_reader: UsageReaderFn | None = None
+    # Evidence source for collect_asset/collect_deps/collect_usage. None ⇒ the simulated
+    # catalog (`DatasetInspector` over `dataset`); production wires a `PostgresInspector`.
+    inspector: Inspector | None = None
+
+    def inspect(self) -> Inspector:
+        return self.inspector or DatasetInspector(self.dataset)
 
 
 def production_deps(settings: Settings, dataset: Dataset | None = None) -> GraphDeps:
@@ -57,6 +64,15 @@ def production_deps(settings: Settings, dataset: Dataset | None = None) -> Graph
 
         usage_reader = read_downstream_usage_via_mcp
 
+    inspector = None
+    if settings.database_url:
+        from dcra.evidence.warehouse import PostgresInspector
+
+        # Reads real column metadata + lineage from the DB; usage stays synthetic.
+        # Falls back to `ds` when the warehouse schema (deploy/warehouse_schema.sql)
+        # is not loaded, so the pure-dataset behaviour is preserved otherwise.
+        inspector = PostgresInspector(settings.database_url, ds)
+
     return GraphDeps(
         interpret_fn=lambda raw: interpret(model, raw),
         recommend_fn=lambda **kw: draft_recommendation(model, **kw),
@@ -65,4 +81,5 @@ def production_deps(settings: Settings, dataset: Dataset | None = None) -> Graph
         repository=PostgresRepository(settings.database_url) if settings.database_url else None,
         revision_limit=settings.revision_limit,
         usage_reader=usage_reader,
+        inspector=inspector,
     )
