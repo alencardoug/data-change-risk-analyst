@@ -14,6 +14,17 @@ evidence and a human in the loop.*
 
 ---
 
+## Status — complete
+
+Feature-complete, deployed, and **frozen**: no further changes are planned.
+
+- **Live:** https://analisador-de-risco.web.app
+- **Stack in production:** Cloud Run (`us-east1`, scale-to-zero) + Neon Postgres + Firebase Hosting (301 redirect). Runbook in [`DEPLOYMENT.md`](DEPLOYMENT.md).
+- **Portfolio write-up:** [`PORTFOLIO.md`](PORTFOLIO.md) · Portuguese deep-dive docs in [`DOCS_EXPLICATIVOS/`](DOCS_EXPLICATIVOS/).
+- **Known, un-fixed defects:** [`KNOWN_ISSUES.md`](KNOWN_ISSUES.md).
+
+---
+
 ## What it does
 
 ```

@@ -13,7 +13,7 @@
 .mypy_cache/
 tests/
 docs/
-DOCS_PESSOAIS/
+DOCS_EXPLICATIVOS/
 specs/
 deploy/
 public/
