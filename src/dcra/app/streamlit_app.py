@@ -204,8 +204,101 @@ def _intro_page() -> None:
     _footer()
 
 
+# --------------------------------------------------------------------------------------
+# Tabela `orders` — o Data Warehouse simulado que a ferramenta analisa
+# --------------------------------------------------------------------------------------
+
+_ORDERS_COL_ORDER = ["id", "customer_id", "customer_legacy_id", "status", "notes_internal"]
+
+_ORDERS_COL_DESC = {
+    "id": "Identificador único do pedido. É alvo da foreign key `fk_order_items_order` "
+          "(itens do pedido) e é lido diariamente pelo job `warehouse_sync`.",
+    "customer_id": "Cliente que fez o pedido. Lido intensamente pelo painel `ops_dashboard` "
+                   "(~90 leituras/dia).",
+    "customer_legacy_id": "Código do cliente no sistema legado, mantido para conciliação "
+                          "durante a migração. Sustenta as views `reporting.v_customer_orders` "
+                          "e `reporting.v_legacy_bridge` e ainda é consultado pelo serviço "
+                          "`cs_lookup`.",
+    "status": "Situação do pedido (NEW, PAID, SHIPPED, DELIVERED, CANCELLED, REFUNDED). "
+              "Alimenta a view `reporting.v_open_orders`.",
+    "notes_internal": "Anotações internas de operação, em texto livre. Sem dependentes nem "
+                      "uso a jusante registrado.",
+}
+
+# (id, customer_id, customer_legacy_id, status, notes_internal) — None = NULL
+_ORDERS_ROWS = [
+    (48201, 10293, "LGC-0007742", "DELIVERED", None),
+    (48202, 11841, None, "PAID", "Cliente pediu antecipação do envio."),
+    (48203, 10022, "LGC-0003118", "SHIPPED", None),
+    (48204, 12507, None, "NEW", None),
+    (48205, 10293, "LGC-0007742", "CANCELLED", "Cancelado a pedido do cliente (SAC #8821)."),
+    (48206, 11310, "LGC-0009004", "DELIVERED", None),
+    (48207, 13288, None, "PAID", None),
+    (48208, 10761, "LGC-0002251", "REFUNDED", "Produto com defeito; reembolso total."),
+    (48209, 12044, "LGC-0006689", "SHIPPED", None),
+    (48210, 11987, None, "DELIVERED", None),
+    (48211, 10450, "LGC-0001120", "NEW", "Endereço corrigido pelo SAC."),
+    (48212, 12903, "LGC-0008337", "PAID", None),
+    (48213, 11102, None, "SHIPPED", None),
+    (48214, 10293, "LGC-0007742", "DELIVERED", None),
+    (48215, 13571, "LGC-0010885", "CANCELLED", "Pagamento não confirmado em 48h."),
+]
+
+_ORDERS_SAMPLE = [dict(zip(_ORDERS_COL_ORDER, row, strict=True)) for row in _ORDERS_ROWS]
+
+
+def _orders_schema_md() -> str:
+    """Tabela de estrutura montada a partir do dataset simulado (não pode divergir das regras)."""
+    ds = default_dataset()
+    rows = ["| Coluna | Tipo | Restrições | Para que serve |", "|---|---|---|---|"]
+    for short in _ORDERS_COL_ORDER:
+        f = ds.columns.get(f"orders.{short}")
+        if f is None:
+            continue
+        restr: list[str] = []
+        if f.in_primary_key:
+            restr.append("**PK**")
+        if not f.is_nullable:
+            restr.append("NOT NULL")
+        if f.in_unique_constraint:
+            restr.append("UNIQUE")
+        fk = next(
+            (d["dependent"] for d in f.dependencies
+             if d.get("dependent_type") == "foreign_key"),
+            None,
+        )
+        if fk:
+            restr.append(f"alvo de FK (`{fk}`)")
+        cell = " · ".join(restr) if restr else "aceita NULL"
+        rows.append(f"| `{short}` | `{f.data_type}` | {cell} | {_ORDERS_COL_DESC[short]} |")
+    return "\n".join(rows)
+
+
+def _orders_table_page() -> None:
+    """Página 'Ver tabela': botão voltar + cabeçalho + 15 linhas de exemplo de `orders`."""
+    if st.button("← Voltar para a aplicação"):
+        st.session_state["view"] = "app"
+        st.rerun()
+    st.title("Tabela `orders`")
+    st.caption(
+        "Amostra do Data Warehouse simulado que a ferramenta analisa — 5 colunas, "
+        "15 linhas de exemplo. Células vazias = NULL."
+    )
+    st.dataframe(
+        _ORDERS_SAMPLE,
+        hide_index=True,
+        use_container_width=True,
+        column_order=_ORDERS_COL_ORDER,
+    )
+    _footer()
+
+
 if not st.session_state.get("entered"):
     _intro_page()
+    st.stop()
+
+if st.session_state.get("view") == "orders_table":
+    _orders_table_page()
     st.stop()
 
 _head, _about = st.columns([5, 1])
@@ -414,6 +507,17 @@ with st.expander("Reabrir um caso por id"):
             _reopen(tid.strip())
         except Exception as exc:
             st.error(f"Não foi possível reabrir: {exc}")
+
+with st.expander("Tabela `orders` — o Data Warehouse simulado"):
+    st.markdown(
+        "A ferramenta avalia mudanças propostas nesta tabela. Ela é simulada em código "
+        "(`dcra.evidence.dataset`) — não existe um Postgres `orders` real —, mas a estrutura "
+        "e a linhagem abaixo são exatamente o que alimenta a análise de risco."
+    )
+    st.markdown(_orders_schema_md())
+    if st.button("Ver tabela", type="primary"):
+        st.session_state["view"] = "orders_table"
+        st.rerun()
 
 st.divider()
 _footer()
