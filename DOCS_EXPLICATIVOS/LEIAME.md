@@ -14,6 +14,17 @@ uma decisão precisa de evidência e de um humano no loop.*
 
 ---
 
+## Status — concluído
+
+Completo, publicado e **congelado**: não há novas features previstas.
+
+- **No ar:** https://analisador-de-risco.web.app
+- **Em produção:** Cloud Run (`us-east1`, escala a zero) + Postgres no Neon + Firebase Hosting (redirect 301). Runbook em `../DEPLOYMENT.md`.
+- **Portfólio:** `../PORTFOLIO.md`. **Defeitos conhecidos e não corrigidos:** `../KNOWN_ISSUES.md`.
+- **Capturas de tela:** `screenshots/`.
+
+---
+
 ## O que faz
 
 ```

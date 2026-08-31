@@ -1,6 +1,6 @@
 # INDICE — mapa de leitura desta pasta
 
-`DOCS_PESSOAIS/` é a sua versão pessoal, em português e mais explicada, dos documentos técnicos
+`DOCS_EXPLICATIVOS/` é a sua versão pessoal, em português e mais explicada, dos documentos técnicos
 do projeto (que continuam em inglês na raiz e em `docs/`, `specs/`). Nada aqui substitui a fonte
 da verdade em código — cada arquivo aponta para o `arquivo.py:linha` exato de onde tirou cada
 afirmação.

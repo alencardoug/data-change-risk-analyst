@@ -2,9 +2,15 @@
 
 ## Fase atual
 
-**DISCOVERY / SPECIFICATION. NÃO IMPLEMENTAR O PRODUTO.**
+**PROJETO CONCLUÍDO E CONGELADO.** Construído, testado e publicado
+(https://analisador-de-risco.web.app). Ver `README.md` → "Status",
+`CLAUDE.md` e `KNOWN_ISSUES.md`.
 
-O repositório foi propositalmente esvaziado de implementação para reduzir anchoring e permitir SDD investigativo.
+O restante deste arquivo é o **registro histórico** da fase de
+discovery/specification (SDD) que originou o produto — mantido para
+rastreabilidade, não como instrução ativa. Na época, o repositório foi
+propositalmente esvaziado de implementação para reduzir anchoring e permitir
+SDD investigativo.
 
 ## Missão
 
