@@ -1,55 +1,56 @@
 # Data Change Risk Analyst
 
-A small, controlled **agentic workflow** that assesses the risk of a proposed change to a
-structured data asset, gathers evidence, produces a non-binding recommendation, and **requires
-human review** before any decision is recorded.
+Um **fluxo agêntico** pequeno e controlado que avalia o risco de uma mudança proposta em um
+ativo de dados estruturado, reúne evidências, produz uma recomendação não vinculante e **exige
+revisão humana** antes de registrar qualquer decisão.
 
-Built to demonstrate real, defensible uses of **LangGraph** (workflow orchestration, state,
-deterministic routing, parallel fan-out + reducers, `interrupt`/`resume` with checkpointing, a
-bounded loop) and **LangChain** (structured output, narrow read-only tools, a bounded
-investigator agent) — not to be a production change-management platform.
+Feito para demonstrar usos reais e defensáveis de **LangGraph** (orquestração de workflow,
+estado, roteamento determinístico, fan-out paralelo + reducers, `interrupt`/`resume` com
+checkpointing, um loop limitado) e **LangChain** (saída estruturada, ferramentas estreitas
+somente-leitura, um agente investigador limitado) — não para ser uma plataforma de gestão de
+mudanças em produção.
 
-The problem in one line: *small schema changes can break unknown consumers; a decision needs
-evidence and a human in the loop.*
-
----
-
-## Status — complete
-
-Feature-complete, deployed, and **frozen**: no further changes are planned.
-
-- **Live:** https://analisador-de-risco.web.app
-- **Stack in production:** Cloud Run (`us-east1`, scale-to-zero) + Neon Postgres + Firebase Hosting (301 redirect). Runbook in [`DEPLOYMENT.md`](DEPLOYMENT.md).
-- **Portfolio write-up:** [`PORTFOLIO.md`](PORTFOLIO.md) · Portuguese deep-dive docs in [`DOCS_EXPLICATIVOS/`](DOCS_EXPLICATIVOS/).
-- **Known, un-fixed defects:** [`KNOWN_ISSUES.md`](KNOWN_ISSUES.md).
+O problema em uma linha: *pequenas mudanças de schema podem quebrar consumidores desconhecidos;
+uma decisão precisa de evidências e de um humano no circuito.*
 
 ---
 
-## What it does
+## Status — concluído
+
+Completo em funcionalidades, publicado e **congelado**: nenhuma mudança adicional está planejada.
+
+- **No ar:** https://analisador-de-risco.web.app
+- **Stack em produção:** Cloud Run (`us-east1`, scale-to-zero) + Neon Postgres + Firebase Hosting (redirect 301). Runbook em [`DEPLOYMENT.md`](DEPLOYMENT.md).
+- **Texto de portfólio:** [`PORTFOLIO.md`](PORTFOLIO.md) · Documentos aprofundados em português em [`DOCS_EXPLICATIVOS/`](DOCS_EXPLICATIVOS/).
+- **Defeitos conhecidos e não corrigidos:** [`KNOWN_ISSUES.md`](KNOWN_ISSUES.md).
+
+---
+
+## O que ele faz
 
 ```
 "Remove the column customer_legacy_id from the orders table"
         │
-   interpret        ← LLM structured output → StructuredChange
+   interpret        ← saída estruturada do LLM → StructuredChange
         │
-   ┌────┴─────┬──────────┐      (parallel; results merged by a reducer)
+   ┌────┴─────┬──────────┐      (paralelo; resultados unidos por um reducer)
  collect    collect    collect
   asset      deps       usage
    └────┬─────┴──────────┘
-   assess_risk           ← deterministic rules in code → LOW | MEDIUM | HIGH + factors
+   assess_risk           ← regras determinísticas em código → LOW | MEDIUM | HIGH + fatores
         │
-   evidence gap?  ──yes──►  investigate   ← bounded read-only ReAct agent
-        │no                     │
-   recommend  ◄─────────────────┘         ← LLM structured output → Recommendation (non-binding)
+   lacuna de evidência?  ──sim──►  investigate   ← agente ReAct somente-leitura e limitado
+        │não                    │
+   recommend  ◄────────────────┘          ← saída estruturada do LLM → Recommendation (não vinculante)
         │
-   LOW ?  ──yes──►  finalize (AUTO_FINALIZED, no human review)
-        │no
-   human_review     ← interrupt(): the run pauses, state is checkpointed to Postgres
-    ├─ approve / reject ──►  finalize (APPROVED / REJECTED)
-    └─ return for revision
-         ├─ note only         ──►  recommend again (risk unchanged)
-         └─ "evidence missing" ──►  re-collect → re-assess (risk may change) → recommend
-       (bounded: DCRA_REVISION_LIMIT returns, default 2)
+   LOW ?  ──sim──►  finalize (AUTO_FINALIZED, sem revisão humana)
+        │não
+   human_review     ← interrupt(): a execução pausa, o estado vai para um checkpoint no Postgres
+    ├─ aprovar / rejeitar ──►  finalize (APPROVED / REJECTED)
+    └─ devolver para revisão
+         ├─ apenas nota          ──►  recommend de novo (risco inalterado)
+         └─ "evidência faltando" ──►  re-coleta → re-avalia (risco pode mudar) → recommend
+       (limitado: DCRA_REVISION_LIMIT devoluções, padrão 2)
 ```
 
 ```mermaid
@@ -91,89 +92,94 @@ graph TD;
 
 ---
 
-## Three decisions worth defending in an interview
+## Três decisões que dá para defender numa entrevista
 
-1. **Why LangGraph and not a single chain?** The process has a *pause* in the middle (human
-   review) that must survive a restart, a *loop* (revision) with a termination guard, and
-   *branches* that depend on deterministic state (risk category, evidence gap, revision count).
-   A chain models none of these; a graph with a checkpointer models all of them. See
+1. **Por que LangGraph e não uma única chain?** O processo tem uma *pausa* no meio (revisão
+   humana) que precisa sobreviver a um reinício, um *loop* (revisão) com uma trava de término e
+   *ramificações* que dependem de estado determinístico (categoria de risco, lacuna de
+   evidência, contagem de revisões). Uma chain não modela nenhum desses; um grafo com
+   checkpointer modela todos. Veja
    `specs/001-data-change-risk-review/contracts/graph-state.md`.
-2. **Why isn't the risk score produced by the LLM?** Risk policy must be predictable, auditable
-   and testable, so it lives in `src/dcra/rules/risk.py` as pure functions — one factor per
-   named predicate over the evidence. The LLM interprets the request and drafts the
-   recommendation; it never sets the category or a routing decision (project constitution §IV).
-   The whole rules module is unit-tested with no LLM calls.
-3. **How is the human kept in control?** `human_review` calls `interrupt()`; the state is
-   serialized to a Postgres checkpoint keyed by `thread_id`. Approve/reject/return is a real
-   human decision recorded as its own field, distinct from the AI recommendation. LOW-risk
-   changes auto-finalize (a deliberate, documented trade-off — ADR-015).
+2. **Por que o score de risco não é produzido pelo LLM?** A política de risco precisa ser
+   previsível, auditável e testável, então ela vive em `src/dcra/rules/risk.py` como funções
+   puras — um fator por predicado nomeado sobre as evidências. O LLM interpreta o pedido e
+   redige a recomendação; ele nunca define a categoria nem uma decisão de roteamento
+   (constituição do projeto §IV). O módulo de regras inteiro tem testes de unidade sem nenhuma
+   chamada ao LLM.
+3. **Como o humano é mantido no controle?** `human_review` chama `interrupt()`; o estado é
+   serializado para um checkpoint no Postgres indexado por `thread_id`. Aprovar/rejeitar/devolver
+   é uma decisão humana real, registrada em seu próprio campo, distinta da recomendação da IA.
+   Mudanças de risco LOW se finalizam automaticamente (um trade-off deliberado e documentado —
+   ADR-015).
 
 ---
 
-## The 2–3 minute demo
+## A demo de 2–3 minutos
 
-Submit **`Remove the column customer_legacy_id from the orders table`** and watch one case
-end to end: structured interpretation → three evidence reads fan out in parallel → deterministic
-rules rate it **MEDIUM** with named factors → an AI recommendation (labelled as such) → the run
-**pauses** at the review gate → **Approve** → one traceable `analysis_record`. That single flow
-shows the business problem, the deterministic/probabilistic split, parallel fan-out with a
-reducer, and interrupt/resume — the things worth talking through in an interview.
+Envie **`Remove the column customer_legacy_id from the orders table`** e acompanhe um caso de
+ponta a ponta: interpretação estruturada → três leituras de evidência disparam em paralelo →
+regras determinísticas classificam como **MEDIUM** com fatores nomeados → uma recomendação da IA
+(rotulada como tal) → a execução **pausa** no portão de revisão → **Aprovar** → um
+`analysis_record` rastreável. Esse único fluxo mostra o problema de negócio, a separação
+determinístico/probabilístico, o fan-out paralelo com um reducer e o interrupt/resume — as
+coisas que valem a pena comentar numa entrevista.
 
-Contrast cases: `add index on orders(customer_id)` (LOW → auto-finalizes, no gate) and
-`drop column orders.legacy_region` (asset absent → HIGH, `ASSET_NOT_FOUND`).
+Casos de contraste: `add index on orders(customer_id)` (LOW → finaliza sozinho, sem portão) e
+`drop column orders.legacy_region` (ativo ausente → HIGH, `ASSET_NOT_FOUND`).
 
-## What was deliberately *not* built
+## O que deliberadamente *não* foi construído
 
-"Corporate" here means clarity, contracts, tests and traceability — not surface area
-(constitution §I, §VI). Kept out on purpose: authentication / RBAC, a full change-management
-lifecycle (tickets, calendars, approval chains), microservices / queues / streaming, RAG /
-embeddings / a vector DB, multi-agent orchestration, a generic or arbitrary-SQL tool, dozens of
-tables, and invented metrics. The agent is read-only and recursion-capped; no DDL is ever
-executed. Adding any of those would be enterprise theater for a portfolio V0.
+"Corporativo" aqui significa clareza, contratos, testes e rastreabilidade — não superfície de
+recursos (constituição §I, §VI). Deixados de fora de propósito: autenticação / RBAC, um ciclo
+completo de gestão de mudanças (tickets, calendários, cadeias de aprovação), microsserviços /
+filas / streaming, RAG / embeddings / um banco vetorial, orquestração multi-agente, uma
+ferramenta genérica ou de SQL arbitrário, dezenas de tabelas e métricas inventadas. O agente é
+somente-leitura e tem teto de recursão; nenhum DDL é executado. Adicionar qualquer um desses
+seria teatro corporativo para um V0 de portfólio.
 
 ---
 
-## Run it
+## Como rodar
 
 ```bash
-cp .env.example .env          # fill OPENAI_API_KEY (and LANGSMITH_API_KEY, or set LANGSMITH_TRACING=false)
+cp .env.example .env          # preencha OPENAI_API_KEY (e LANGSMITH_API_KEY, ou defina LANGSMITH_TRACING=false)
 docker compose up -d          # postgres:16
 uv sync
 uv run streamlit run src/dcra/app/streamlit_app.py
 ```
 
-Try: `add index on orders(customer_id)` (LOW, auto-finalizes) ·
-`drop column orders.customer_legacy_id` (MEDIUM, pauses for review) ·
-`drop column orders.legacy_region` (unknown asset → HIGH).
+Experimente: `add index on orders(customer_id)` (LOW, finaliza sozinho) ·
+`drop column orders.customer_legacy_id` (MEDIUM, pausa para revisão) ·
+`drop column orders.legacy_region` (ativo desconhecido → HIGH).
 
-## Tests
+## Testes
 
 ```bash
-uv run pytest tests/unit tests/e2e     # deterministic — fake model + in-memory checkpointer, no API key, no DB
-RUN_LLM_TESTS=1 uv run pytest tests/llm_integration   # a few real-model calls
+uv run pytest tests/unit tests/e2e     # determinístico — modelo fake + checkpointer em memória, sem API key, sem DB
+RUN_LLM_TESTS=1 uv run pytest tests/llm_integration   # algumas chamadas a modelo real
 DATABASE_URL=postgresql://dcra:dcra@localhost:5432/dcra uv run pytest tests/unit/test_repository.py
 ```
 
-See `make help` for shortcuts.
+Veja `make help` para atalhos.
 
 ---
 
-## Layout
+## Estrutura
 
-| Path | What |
+| Caminho | O que é |
 |---|---|
-| `src/dcra/domain/` | Pydantic contracts + enums |
-| `src/dcra/evidence/` | simulated dataset + three read-only tools |
-| `src/dcra/rules/risk.py` | deterministic risk policy (pure functions) |
-| `src/dcra/llm/factory.py` | chat model + interpret / recommend / investigate (a DI seam) |
-| `src/dcra/graph/` | state + reducers, nodes, routing, `build_graph` |
-| `src/dcra/persistence/` | `PostgresSaver` checkpointer + `analysis_record` repository |
-| `src/dcra/app/streamlit_app.py` | the demo UI |
-| `src/dcra/mcp/` | V1 increment (off by default): one evidence tool via a local MCP server — see `docs/mcp.md` |
-| `specs/001-data-change-risk-review/` | the SDD artifacts (spec, plan, data-model, contracts, tasks) — the source of truth |
-| `docs/learning-notes.md` | per-concept: what / why / simpler alternative / trade-off / where / how tested |
-| `docs/observability.md` | reading a LangSmith trace for one case |
-| `docs/mcp.md` | the MCP increment: before/after, what MCP adds and does not add |
+| `src/dcra/domain/` | contratos Pydantic + enums |
+| `src/dcra/evidence/` | dataset simulado + três ferramentas somente-leitura |
+| `src/dcra/rules/risk.py` | política de risco determinística (funções puras) |
+| `src/dcra/llm/factory.py` | modelo de chat + interpret / recommend / investigate (uma costura de DI) |
+| `src/dcra/graph/` | estado + reducers, nós, roteamento, `build_graph` |
+| `src/dcra/persistence/` | checkpointer `PostgresSaver` + repositório `analysis_record` |
+| `src/dcra/app/streamlit_app.py` | a UI da demo |
+| `src/dcra/mcp/` | incremento V1 (desligado por padrão): uma ferramenta de evidência via um servidor MCP local — veja `docs/mcp.md` |
+| `specs/001-data-change-risk-review/` | os artefatos SDD (spec, plan, data-model, contracts, tasks) — a fonte da verdade |
+| `docs/learning-notes.md` | por conceito: o quê / por quê / alternativa mais simples / trade-off / onde / como é testado |
+| `docs/observability.md` | lendo um trace do LangSmith para um caso |
+| `docs/mcp.md` | o incremento MCP: antes/depois, o que o MCP adiciona e o que não adiciona |
 
-The root `*_SEED.md` / `DISCOVERY_NOTES.md` / `DECISIONS.md` files are the discovery record that
-produced the spec.
+Os arquivos `*_SEED.md` / `DISCOVERY_NOTES.md` / `DECISIONS.md` na raiz são o registro de
+discovery que produziu a spec.
