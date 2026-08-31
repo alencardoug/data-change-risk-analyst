@@ -6,7 +6,6 @@ from langgraph.types import interrupt
 
 from dcra.domain.enums import CaseStatus, Outcome, ReviewDecision, RiskCategory
 from dcra.domain.models import AnalysisRecord, EvidenceItem, ReviewAction, RiskAssessment
-from dcra.evidence.tools import read_asset_metadata, read_dependencies, read_downstream_usage
 from dcra.graph.deps import GraphDeps
 from dcra.graph.state import GraphState
 from dcra.rules import risk as risk_rules
@@ -47,12 +46,12 @@ def make_nodes(deps: GraphDeps) -> dict:
 
     def collect_asset(state: GraphState) -> dict:
         sc = state["structured_change"]
-        items = read_asset_metadata(deps.dataset, sc.target_table, _target_column(sc) or None)
+        items = deps.inspect().asset_metadata(sc.target_table, _target_column(sc) or None)
         return {"evidence": items, "step_log": [f"collect_asset: {len(items)} item(s)"]}
 
     def collect_deps(state: GraphState) -> dict:
         sc = state["structured_change"]
-        items = read_dependencies(deps.dataset, sc.target_table, _target_column(sc))
+        items = deps.inspect().dependencies(sc.target_table, _target_column(sc))
         return {"evidence": items, "step_log": [f"collect_deps: {len(items)} item(s)"]}
 
     def collect_usage(state: GraphState) -> dict:
@@ -62,7 +61,7 @@ def make_nodes(deps: GraphDeps) -> dict:
             items = deps.usage_reader(sc.target_table, col)
             via = " (via MCP)"
         else:
-            items = read_downstream_usage(deps.dataset, sc.target_table, col)
+            items = deps.inspect().downstream_usage(sc.target_table, col)
             via = ""
         return {"evidence": items, "step_log": [f"collect_usage{via}: {len(items)} item(s)"]}
 

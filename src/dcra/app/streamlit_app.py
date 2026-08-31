@@ -274,18 +274,44 @@ def _orders_schema_md() -> str:
     return "\n".join(rows)
 
 
+@st.cache_data(ttl=60, show_spinner=False)
+def _orders_rows(db_url: str | None) -> list[dict] | None:
+    """As 15 primeiras linhas reais de `orders`, ou None se não houver banco/tabela."""
+    if not db_url:
+        return None
+    import psycopg
+
+    try:
+        with psycopg.connect(db_url) as conn, conn.cursor() as cur:
+            cur.execute("SELECT to_regclass('public.orders')")
+            if cur.fetchone()[0] is None:
+                return None
+            cur.execute(
+                "SELECT id, customer_id, customer_legacy_id, status, notes_internal "
+                "FROM orders ORDER BY id LIMIT 15"
+            )
+            cols = [d[0] for d in cur.description]
+            return [dict(zip(cols, r, strict=True)) for r in cur.fetchall()]
+    except Exception:
+        return None
+
+
 def _orders_table_page() -> None:
-    """Página 'Ver tabela': botão voltar + cabeçalho + 15 linhas de exemplo de `orders`."""
+    """Página 'Ver tabela': botão voltar + cabeçalho + 15 linhas de `orders`."""
     if st.button("← Voltar para a aplicação"):
         st.session_state["view"] = "app"
         st.rerun()
     st.title("Tabela `orders`")
+    rows = _orders_rows(Settings.from_env().database_url)
+    live = rows is not None
     st.caption(
-        "Amostra do Data Warehouse simulado que a ferramenta analisa — 5 colunas, "
-        "15 linhas de exemplo. Células vazias = NULL."
+        ("Leitura ao vivo do banco — 15 primeiras linhas de `orders`. "
+         if live else
+         "Sem banco configurado: amostra de exemplo. ")
+        + "Células vazias = NULL."
     )
     st.dataframe(
-        _ORDERS_SAMPLE,
+        rows if live else _ORDERS_SAMPLE,
         hide_index=True,
         use_container_width=True,
         column_order=_ORDERS_COL_ORDER,
@@ -510,9 +536,10 @@ with st.expander("Reabrir um caso por id"):
 
 with st.expander("Tabela `orders` — o Data Warehouse simulado"):
     st.markdown(
-        "A ferramenta avalia mudanças propostas nesta tabela. Ela é simulada em código "
-        "(`dcra.evidence.dataset`), mas a estrutura e a linhagem abaixo são exatamente o "
-        "que alimenta a análise de risco."
+        "A ferramenta avalia mudanças propostas nesta tabela. Com um banco configurado, ela "
+        "lê tipo, chaves e dependências direto do `information_schema` / `pg_catalog` (schema "
+        "em `deploy/warehouse_schema.sql`); sem banco, usa o catálogo simulado em "
+        "`dcra.evidence.dataset`. A estrutura:"
     )
     st.markdown(_orders_schema_md())
     if st.button("Ver tabela", type="primary"):

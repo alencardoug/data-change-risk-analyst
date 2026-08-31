@@ -1,4 +1,4 @@
-.PHONY: help sync test e2e unit llm-test lint fmt db app graph
+.PHONY: help sync test e2e unit llm-test lint fmt db dw app graph
 
 help:  ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  %-10s %s\n", $$1, $$2}'
@@ -26,6 +26,9 @@ fmt:  ## Ruff format + fix
 
 db:  ## Start Postgres
 	docker compose up -d
+
+dw:  ## (Re)load the simulated warehouse schema (orders + reporting views)
+	docker exec -i ws_datachange-postgres-1 psql -U dcra -d dcra < deploy/warehouse_schema.sql
 
 app:  ## Run the Streamlit demo
 	uv run streamlit run src/dcra/app/streamlit_app.py
