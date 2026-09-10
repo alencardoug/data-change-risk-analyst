@@ -139,3 +139,38 @@ def test_sdk_evaluator_adaptation_uses_reference_outputs():
                       created_at=datetime.now(UTC))
     result = run_evaluator(risk_correct).evaluate_run(run, example)
     assert result.score == 0
+
+
+def test_summary_evaluator_is_accepted_by_the_sdk_and_reports_the_set():
+    from _evaluators import high_risk_recall_summary
+    from langsmith.evaluation._runner import _normalize_summary_evaluator
+
+    outputs = [{"risk": "LOW"}, {"risk": "LOW"}, {"risk": "MEDIUM"}]
+    references = [{"risk": "HIGH"}, {"risk": "LOW"}, {"risk": "MEDIUM"}]
+    assert high_risk_recall_summary(outputs, references) == {"key": "high_risk_recall", "score": 0.0}
+    # Sem HIGH de referência não existe recall; ausência de nota, nunca zero.
+    vazio = high_risk_recall_summary([{"risk": "LOW"}], [{"risk": "LOW"}])
+    assert "score" not in vazio
+    assert callable(_normalize_summary_evaluator(high_risk_recall_summary))
+
+
+def test_aggregation_separates_denominators_and_respects_concurrency():
+    mod = importlib.import_module("16_consultar_runs")
+    import json
+
+    path = Path(__file__).resolve().parents[1] / "dados" / "runs.jsonl"
+    runs = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    result = mod.analisar(runs, "collect_deps")
+    d = result["denominadores"]
+    # Quatro perguntas diferentes sobre "erro"; quatro respostas corretas e distintas.
+    assert d["erro_por_pedido"] == round(1 / 3, 4)
+    assert d["erro_por_run"] == round(3 / 14, 4)
+    assert d["erro_por_tentativa_de_collect_deps"] == round(1 / 3, 4)
+    assert d["pedidos_em_que_collect_deps_nunca_obteve_resposta"] == 0
+    # Somar filhos concorrentes esconderia o trabalho próprio da raiz.
+    tA = next(t for t in result["tempo_proprio"] if t["trace"] == "tA")
+    assert tA["soma_ingenua_dos_filhos_ms"] == tA["raiz_ms"] == 1200.0
+    assert tA["ocupacao_real_dos_filhos_ms"] == 1000.0
+    assert tA["tempo_proprio_ms"] == 200.0
+    assert result["latencia"]["collect_asset"]["n"] == 1
+    assert mod.percentil([], 95) is None

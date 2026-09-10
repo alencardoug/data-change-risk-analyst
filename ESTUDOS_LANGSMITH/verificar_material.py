@@ -53,6 +53,7 @@ def check_scripts() -> None:
         (["12_regression_gate.py", "--candidate", "baseline"], 0),
         (["12_regression_gate.py", "--candidate", "bug"], 1),
         (["13_prompts.py"], 0), (["14_context.py"], 0), (["15_langfuse.py"], 0),
+        (["16_consultar_runs.py"], 0),
     ]
     with tempfile.TemporaryDirectory(prefix="dcra-labs-offline-") as tmp:
         marker = Path(tmp) / "network-attempts.txt"

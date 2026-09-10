@@ -149,6 +149,19 @@ Se as probabilidades de inclusão forem conhecidas, ponderação pode corrigir c
 
 </details>
 
+## 11. Quatro taxas de erro para o mesmo dia
+
+Execute `16_consultar_runs.py`. O time pergunta: “qual foi nossa taxa de erro?”. O bloco `denominadores` oferece quatro números. Qual deles você levaria a uma conversa sobre experiência do usuário? Qual levaria a uma conversa sobre a saúde do catálogo? E por que a soma das durações dos filhos do trace `tA` é exatamente igual à duração da raiz?
+
+<details>
+<summary>Gabarito e evidência</summary>
+
+Para experiência do usuário, `erro_por_pedido` = **1/3 ≈ 0,3333**: uma das três raízes terminou em erro, e é isso que alguém sentiu. Para a saúde do catálogo, `erro_por_tentativa_de_collect_deps` = **1/3**, acompanhado de `pedidos_em_que_collect_deps_nunca_obteve_resposta` = **0** — a dependência falha com frequência, e o retry vem escondendo isso. `erro_por_run` = **3/14 ≈ 0,2143** é o número que mais aparece em painéis e o que menos responde a alguma pergunta: seu denominador mistura raízes e filhos de traces de tamanhos diferentes.
+
+No `tA`, os três coletores rodam na mesma janela. A soma ingênua dá 1200 ms, igual à raiz, sugerindo que a orquestração não custa nada; a ocupação real é 1000 ms e sobram **200 ms** de tempo próprio. Compare `artefatos/16-consultas.json` com [runs.jsonl](dados/runs.jsonl), onde os horários de início e fim estão explícitos. O mesmo cuidado aparece no [07](07-falhas-latencia-retries.md) para latência e no [09](09-tokens-custos-orcamentos.md) para custo.
+
+</details>
+
 ## Como corrigir seu raciocínio
 
 Marque um ponto por hipótese verificável, evidência adequada e conclusão com limite explícito. Revise os desafios em que você acertou o número, mas não soube indicar de onde veio. Para o próximo ensaio oral, escolha justamente uma dessas lacunas.

@@ -40,6 +40,8 @@ def risk_correct(outputs: dict, reference_outputs: dict) -> dict:
 
 `key` identifica a métrica. `score` é o valor numérico; aqui 0 ou 1. Os mesmos avaliadores podem ser adaptados pelo SDK quando `Client.evaluate` fornece outputs e referências. Consulte as [entradas/saídas de avaliadores](https://docs.langchain.com/langsmith/evaluation-concepts).
 
+Logo abaixo está `high_risk_recall_summary`, que recebe **as listas inteiras** de outputs e referências em vez de um par. Existem duas famílias: o avaliador por exemplo responde “esta linha está certa?”; o avaliador de resumo responde “o que a rodada mostrou?”. Recall precisa da segunda, porque seu denominador são os três HIGH de referência — uma quantidade que nenhuma linha individual conhece. Média de notas por exemplo e métrica de conjunto não são a mesma operação.
+
 `factors_exact` compara conjuntos porque a ordem dos códigos não importa para esse contrato. Se a multiplicidade de um fator fosse relevante, transformar em conjunto esconderia duplicações: o método de comparação precisa respeitar a semântica.
 
 `error_contract` confere a presença esperada de erro. Não mede qualidade da mensagem, tipo específico da exception nem ausência de gravação indevida. São propriedades adicionais possíveis; uma nota existente não cobre automaticamente critérios que não implementou.

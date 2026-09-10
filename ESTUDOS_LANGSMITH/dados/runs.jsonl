@@ -1,0 +1,14 @@
+{"trace": "tA", "id": "a0", "parent": null, "name": "dcra-iniciar", "run_type": "chain", "start": "2026-09-09T10:00:00.000Z", "end": "2026-09-09T10:00:01.200Z", "error": null}
+{"trace": "tA", "id": "a1", "parent": "a0", "name": "interpret", "run_type": "chain", "start": "2026-09-09T10:00:00.050Z", "end": "2026-09-09T10:00:00.350Z", "error": null}
+{"trace": "tA", "id": "a2", "parent": "a0", "name": "collect_asset", "run_type": "tool", "start": "2026-09-09T10:00:00.400Z", "end": "2026-09-09T10:00:00.520Z", "error": null}
+{"trace": "tA", "id": "a3", "parent": "a0", "name": "collect_deps", "run_type": "tool", "start": "2026-09-09T10:00:00.400Z", "end": "2026-09-09T10:00:00.600Z", "error": null}
+{"trace": "tA", "id": "a4", "parent": "a0", "name": "collect_usage", "run_type": "tool", "start": "2026-09-09T10:00:00.400Z", "end": "2026-09-09T10:00:00.480Z", "error": null}
+{"trace": "tA", "id": "a5", "parent": "a0", "name": "recommend", "run_type": "chain", "start": "2026-09-09T10:00:00.650Z", "end": "2026-09-09T10:00:01.150Z", "error": null}
+{"trace": "tB", "id": "b0", "parent": null, "name": "dcra-iniciar", "run_type": "chain", "start": "2026-09-09T10:05:00.000Z", "end": "2026-09-09T10:05:01.500Z", "error": null}
+{"trace": "tB", "id": "b1", "parent": "b0", "name": "interpret", "run_type": "chain", "start": "2026-09-09T10:05:00.050Z", "end": "2026-09-09T10:05:00.370Z", "error": null}
+{"trace": "tB", "id": "b2", "parent": "b0", "name": "collect_deps", "run_type": "tool", "start": "2026-09-09T10:05:00.400Z", "end": "2026-09-09T10:05:00.650Z", "error": "TimeoutError: catalogo nao respondeu"}
+{"trace": "tB", "id": "b3", "parent": "b0", "name": "collect_deps", "run_type": "tool", "start": "2026-09-09T10:05:00.700Z", "end": "2026-09-09T10:05:00.880Z", "error": null}
+{"trace": "tB", "id": "b4", "parent": "b0", "name": "recommend", "run_type": "chain", "start": "2026-09-09T10:05:00.900Z", "end": "2026-09-09T10:05:01.500Z", "error": null}
+{"trace": "tC", "id": "c0", "parent": null, "name": "dcra-iniciar", "run_type": "chain", "start": "2026-09-09T10:09:00.000Z", "end": "2026-09-09T10:09:00.900Z", "error": "GraphRecursionError: limite de passos atingido"}
+{"trace": "tC", "id": "c1", "parent": "c0", "name": "interpret", "run_type": "chain", "start": "2026-09-09T10:09:00.050Z", "end": "2026-09-09T10:09:00.360Z", "error": null}
+{"trace": "tC", "id": "c2", "parent": "c0", "name": "investigate", "run_type": "chain", "start": "2026-09-09T10:09:00.400Z", "end": "2026-09-09T10:09:00.900Z", "error": "GraphRecursionError: limite de passos atingido"}

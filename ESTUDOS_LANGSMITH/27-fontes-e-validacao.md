@@ -2,7 +2,7 @@
 
 [Índice](README.md) · [Anterior](26-glossario.md) · [Próximo](28-caderno-de-evidencias.md)
 
-**Conferência: 9 de setembro de 2026.** Este registro distingue execução local, inspeção de API e leitura da documentação. A aprovação de testes com fixtures não valida autenticação, ingestão no SaaS ou qualidade de um modelo real.
+**Conferência: 9 de setembro de 2026; revisão: 10 de setembro de 2026.** Este registro distingue execução local, inspeção de API e leitura da documentação. A aprovação de testes com fixtures não valida autenticação, ingestão no SaaS ou qualidade de um modelo real.
 
 ## Fontes primárias consultadas
 
@@ -54,10 +54,11 @@ Foi verificada por introspecção a presença dos métodos e parâmetros utiliza
 |---|---|---|
 | `traceable`, `tracing_context` | Instrumentação, metadados, hierarquia e modo local | Execução local e testes que inspecionam runs em memória |
 | `Client.create_examples`, `list_examples(as_of=...)`, `read_dataset_version` | Criar casos e fixar a versão do dataset | Assinaturas locais e documentação; sem publicação remota |
-| `Client.evaluate` | Avaliadores, `max_concurrency`, `num_repetitions` | Assinatura local; adaptação de `reference_outputs` testada sem rede |
+| `Client.evaluate` | Avaliadores, `summary_evaluators`, `max_concurrency`, `num_repetitions` | Assinatura local; adaptação de `reference_outputs` e do avaliador de resumo testada sem rede |
 | `Client.create_feedback` | Nota de código ligada ao run | Assinatura local, incluindo `feedback_source_type`; sem envio |
 | `Client.push_prompt`, `pull_prompt`, `pull_prompt_commit` | Publicação privada e recuperação por commit | Assinaturas locais, incluindo `skip_cache`; renderização dos prompts testada localmente |
 | `Client.flush(timeout=...)`, `get_run_url` | Finalização e URL do trace | Assinaturas locais; sem ingestão nem obtenção de URL autenticada |
+| `Client.list_runs(filter=..., is_root=..., error=...)` | Agregação de runs no lab 16 | Assinatura e sintaxe de filtro lidas na docstring instalada; consulta remota não executada |
 | `RunTree.set(usage_metadata=...)` | Uso e custo sintéticos | Parâmetro presente; contabilidade testada localmente; sem renderização na UI |
 | Processadores de inputs/outputs | Redação dos campos registrados | Teste local compara trace processado com retorno original da função |
 | Langfuse `start_as_current_observation`, `flush` | Lab opcional de outra ferramenta | Conferência na documentação oficial; modo remoto não executado |
@@ -70,34 +71,50 @@ O [verificador do material](verificar_material.py) tem duas partes: links/sintax
 .venv/bin/python ESTUDOS_LANGSMITH/verificar_material.py
 ```
 
-Ele roda **25 comandos**, cobrindo os **16 scripts numerados** e as variantes de casos, revisão e gate. Bloqueia chamadas de conexão/resolução via `socket` nos subprocessos e falha se detectar tentativa de rede, mesmo que o laboratório a capture. Isso é uma verificação desses comandos e caminhos Python, sem afirmar isolamento universal de qualquer código futuro.
+Ele roda **26 comandos**, cobrindo os **17 scripts numerados** e as variantes de casos, revisão e gate. Bloqueia chamadas de conexão/resolução via `socket` nos subprocessos e falha se detectar tentativa de rede, mesmo que o laboratório a capture. Isso é uma verificação desses comandos e caminhos Python, sem afirmar isolamento universal de qualquer código futuro.
 
 | Verificação | Resultado |
 |---|---|
-| Links locais, sintaxe dos labs e JSON/JSONL | 30 documentos com destinos locais existentes; arquivos Python e dados válidos |
-| Modos locais dos laboratórios | 25 comandos com exit codes esperados; nenhuma tentativa de rede detectada |
+| Links locais, sintaxe dos labs e JSON/JSONL | 31 documentos com destinos locais existentes; arquivos Python e dados válidos |
+| Modos locais dos laboratórios | 26 comandos com exit codes esperados; nenhuma tentativa de rede detectada |
 | Avaliação determinística | Baseline: 16/16 categorias; candidata: 13/16; recall HIGH da candidata: 0/3 |
 | Gate local | Baseline termina em 0; mutação termina em 1, como esperado |
-| Testes do produto e curso, exceto o arquivo de subprocesso MCP | 65 aprovados, 19 pulados; inclui os 10 casos de teste do curso |
+| Testes do produto e curso, exceto o arquivo de subprocesso MCP | 67 aprovados, 19 pulados; inclui os 12 casos de teste do curso |
 | Testes de subprocesso MCP, executados separadamente | 2 aprovados fora do sandbox |
-| `uv run ruff check src tests` | Aprovado |
+| `uv run ruff check src tests ESTUDOS_LANGSMITH` | Aprovado |
 
 Os testes foram executados com `DATABASE_URL` vazio, `RUN_LLM_TESTS=0` e tracing desativado. Os 19 skips correspondem a **15 testes que precisam de Postgres** e **4 testes opt-in com LLM**. O pytest emite seis avisos de depreciação de `ast.Str` no adaptador de avaliadores do SDK LangSmith instalado; eles não impediram os testes.
 
-A primeira execução completa ficou parada em `tests/mcp/test_mcp_usage_tool.py`. A repetição isolada, com timeout, também não terminou no sandbox. Esses dois testes passaram fora dele em 13,56 segundos. O resultado agregado é **67 testes aprovados e 19 pulados**, obtido em duas execuções; não se trata de uma suíte completa aprovada dentro do sandbox. O código do produto não foi alterado para contornar essa limitação.
+A primeira execução completa ficou parada em `tests/mcp/test_mcp_usage_tool.py`. A repetição isolada, com timeout, também não terminou no sandbox. Esses dois testes passaram fora dele em 13,56 segundos. O resultado agregado é **69 testes aprovados e 19 pulados**, obtido em duas execuções; não se trata de uma suíte completa aprovada dentro do sandbox. O código do produto não foi alterado para contornar essa limitação.
+
+Na revisão de 10 de setembro de 2026 foram reexecutados os 67 testes fora do arquivo MCP, agora incluindo os dois casos novos do curso, mais o verificador e o `ruff`. O arquivo de subprocesso MCP **não** foi reexecutado nessa revisão: os 2 testes que ele contém seguem contados a partir da sessão anterior, e nada foi alterado em `src/` nem em `tests/mcp/` desde então.
 
 Para repetir a divisão utilizada:
 
 ```bash
 env DATABASE_URL= RUN_LLM_TESTS=0 LANGSMITH_TRACING=false LANGCHAIN_TRACING_V2=false uv run pytest tests ESTUDOS_LANGSMITH/tests --ignore=tests/mcp/test_mcp_usage_tool.py
 env DATABASE_URL= RUN_LLM_TESTS=0 LANGSMITH_TRACING=false LANGCHAIN_TRACING_V2=false uv run pytest tests/mcp/test_mcp_usage_tool.py
-uv run ruff check src tests
+uv run ruff check src tests ESTUDOS_LANGSMITH
 ```
 
 Na sessão de validação também foram definidos `UV_OFFLINE=1`, `UV_FROZEN=1` e um cache em `/tmp`, usando o ambiente já instalado. A segunda linha acima deve rodar em um ambiente que permita o subprocesso MCP. Esses comandos não solicitam os testes de banco ou modelo real.
 
+## Métodos marcados como obsoletos no SDK instalado
+
+A introspecção do `langsmith` 0.11.1 encontrou avisos de depreciação em três métodos usados pelo curso. Eles funcionam hoje; a remoção anunciada é **depois de 31 de janeiro de 2027**.
+
+| Método usado | Onde | Substituto indicado pelo SDK |
+|---|---|---|
+| `Client.read_run` | [_common.py](labs/_common.py), ao imprimir a URL do trace | `Client.runs.retrieve` |
+| `Client.get_run_url` | [_common.py](labs/_common.py), mesma função | `Client.runs.get_url` |
+| `Client.list_runs` | [16_consultar_runs.py](labs/16_consultar_runs.py), modo `--send` | `Client.runs.query` |
+
+O material permanece no caminho antigo de forma deliberada: o namespace `Client.runs` é assíncrono e sua primeira leitura chama `_check_backend_version`, exigindo backend `0.16` ou superior em instalação própria. Trocar agora acrescentaria plumbing assíncrono e uma dependência de versão sem ganho didático. Essa é a decisão registrada, não um descuido; o [capítulo 22](22-operacao-slos-incidentes.md) a explica ao aluno. Reveja-a antes de reaproveitar o código em algo que precise durar até 2027.
+
 ## O que ficou sem execução remota
 
 Nesta conferência, não foram executados envios de traces, feedback, datasets, experimentos ou prompts ao LangSmith; chamadas de modelo real dos labs 02/07/08; juízes online, filas de anotação e ações na UI; nem envio ao Langfuse ou um pipeline OpenTelemetry entre serviços.
+
+Acrescentam-se, na revisão de 10 de setembro de 2026, dois itens do mesmo tipo. O `summary_evaluators` do lab 06 teve a forma da função validada contra o normalizador do SDK em teste local, mas **nenhum experimento remoto foi publicado**: não há confirmação visual de como `high_risk_recall` aparece na comparação da UI. E o modo `--send` do lab 16 **não foi executado**: a assinatura e a sintaxe do filtro vêm da docstring instalada, e o modo local, esse sim verificado, não depende dela. Trate ambos como o lab 15 do Langfuse — o caminho está escrito, a confirmação é sua.
 
 Consequentemente, o curso não fornece URLs privadas inventadas, notas de juiz presumidas, autenticação supostamente aprovada ou custos reais medidos. Os comandos dessas etapas estão nos capítulos correspondentes para execução na conta do aluno. Ao realizá-las, registre resultados e limitações no [caderno de evidências](28-caderno-de-evidencias.md).

@@ -30,3 +30,16 @@ def high_risk_recall(rows: list[dict]) -> float | None:
     if not high:
         return None  # Não confundir denominador vazio com sucesso.
     return sum(row["outputs"].get("risk") == "HIGH" for row in high) / len(high)
+
+
+def high_risk_recall_summary(outputs: list[dict], reference_outputs: list[dict]) -> dict:
+    """Métrica do experimento inteiro: o recall precisa do conjunto, não de um exemplo."""
+    rows = [{"outputs": o, "reference": r}
+            for o, r in zip(outputs, reference_outputs, strict=True)]
+    recall = high_risk_recall(rows)
+    if recall is None:
+        return {"key": "high_risk_recall", "comment": "nenhum HIGH de referência neste conjunto"}
+    return {"key": "high_risk_recall", "score": recall}
+
+
+SUMMARY_EVALUATORS = [high_risk_recall_summary]

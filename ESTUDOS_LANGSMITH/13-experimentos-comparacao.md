@@ -35,6 +35,7 @@ results = client.evaluate(
     target,
     data=examples,
     evaluators=EVALUATORS,
+    summary_evaluators=SUMMARY_EVALUATORS,
     experiment_prefix="...",
     max_concurrency=1,
     num_repetitions=1,
@@ -67,6 +68,6 @@ Localização: saída do adaptador, após o grafo calcular o risco correto.
 Decisão: rejeitar candidata neste gate; não promover com base na média geral.
 ```
 
-O recall HIGH é calculado pelo relatório local do lab 06; neste experimento remoto enviamos quatro avaliadores por exemplo. Você pode inferir o recall pelas três linhas críticas, mas não espere uma coluna agregada adicional que o script não publicou.
+Os quatro avaliadores por exemplo produzem uma nota por linha; o recall HIGH só existe sobre o conjunto. Por isso o lab também passa `summary_evaluators=[high_risk_recall_summary]`, e o experimento recebe `high_risk_recall` como métrica agregada — 1,0 na baseline, 0,0 na candidata. É a diferença entre um avaliador que julga um exemplo e um que julga a rodada. A média de um avaliador por exemplo não substitui isso: nenhuma média de `risk_correct` tem os três casos HIGH como denominador.
 
 **Memorize:** *experiment*, *baseline*, *candidate*, *paired comparison*, *regression*, *slice analysis*.

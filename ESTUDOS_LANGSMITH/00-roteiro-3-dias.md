@@ -4,6 +4,8 @@
 
 **Seu prazo: até três dias.** Reserve idealmente três sessões de 2–3 horas. Em cada uma, alterne vinte minutos de leitura/prática e cinco de explicação em voz alta. Uma explicação que só funciona quando o arquivo está aberto ainda precisa de treino.
 
+Os capítulos 01 a 25 aparecem todos nesta rota. Os três últimos — [glossário](26-glossario.md), [fontes](27-fontes-e-validacao.md) e [caderno](28-caderno-de-evidencias.md) — são consulta contínua, não uma sessão à parte.
+
 ## Dia 1 — enxergar a execução
 
 | Tempo | Faça | Evidência que deve guardar |
@@ -13,6 +15,7 @@
 | 35 min | Execute os casos LOW, MEDIUM e HIGH em [05](05-dissecar-dcra.md) | Caminhos diferentes, com explicação de uma regra |
 | 25 min | Faça pausa/retomada de [06](06-threads-checkpoints-revisao.md) | Mesmo `thread_id`, execuções distintas |
 | 20 min | Injete as falhas de [07](07-falhas-latencia-retries.md) | Um root sem erro contendo uma tentativa falha |
+| 15 min | Rode o lab 14 de [08](08-instrumentacao-contexto.md) | Dois cálculos idênticos; só um sabe a que caso pertence |
 | 15 min | Explique o sistema em dois minutos e anote dúvidas | Resposta sem ler nomes de funções |
 
 Ao terminar, consiga apontar: “a interpretação aconteceu aqui; a política de risco aqui; o custo do modelo aqui; a espera humana pertence ao processo de negócio”. Se ainda disser que LangSmith retoma o grafo, volte ao capítulo 06.
@@ -24,23 +27,29 @@ Ao terminar, consiga apontar: “a interpretação aconteceu aqui; a política d
 | 20 min | Leia [11](11-datasets-contratos.md); examine três referências | Inputs separados de gabaritos |
 | 30 min | Rode [12](12-evals-deterministicos.md) | 16/16 na baseline, 13/16 com bug, recall HIGH 0 |
 | 30 min | Publique dataset e compare experimentos em [13](13-experimentos-comparacao.md) | Uma linha em que a candidata regrediu |
+| 20 min | Anote com rubrica em [10](10-feedback-anotacao.md) | Uma nota com critério e trecho citado, e sua origem |
 | 20 min | Faça o lab 07 de [14](14-modelo-real-saida-estruturada.md), se a conta de modelo estiver pronta | Input, JSON retornado e critério de comparação |
 | 25 min | Leia a rubrica e execute/analise [15](15-juiz-llm-calibracao.md) | Discordância possível entre juiz e anotação manual |
 | 15 min | Faça [09](09-tokens-custos-orcamentos.md) | Conta de custo e efeito de repetir avaliações |
 
 Se não puder chamar um modelo, faça o ensaio dos labs 07 e 08 e deixe anotado **“não executei esta etapa com modelo real”**. Você ainda terá executado o grafo, a instrumentação e os avaliadores de código.
 
+O capítulo 10 é o que liga os dois lados: a falha que você viu no dia 1 vira uma nota com critério, e a nota vira um exemplo de dataset. Sem ele, a rota do dia 2 parece começar com um dataset caído do céu.
+
 ## Dia 3 — defender decisões
 
 | Tempo | Faça | Evidência |
 |---|---|---|
-| 25 min | Leia [17](17-reprodutibilidade-prompts.md) e rode o lab 13 | Hash/commit de prompt e manifesto |
+| 20 min | Leia [17](17-reprodutibilidade-prompts.md) e rode o lab 13 | Hash/commit de prompt e manifesto |
+| 20 min | Faça [16](16-avaliar-workflow-agentes.md) com `--case gap` | Investigação acionada sem evidência nova: atividade ≠ benefício |
+| 20 min | Rode `16_consultar_runs.py` em [22](22-operacao-slos-incidentes.md) | Quatro taxas de erro corretas e diferentes; `n` junto do p95 |
 | 20 min | Leia [18](18-evals-online-producao.md) e [19](19-privacidade-amostragem.md) | Desenho do ciclo online → dataset → experimento |
-| 20 min | Rode o pequeno RAG de [20](20-rag-fora-do-projeto.md) | Recuperação ruim versus resposta inventada |
-| 20 min | Leia a comparação de [21](21-langfuse-otel.md) | Diferenças de responsabilidade entre quatro ferramentas |
+| 15 min | Leia a comparação de [21](21-langfuse-otel.md) | Diferenças de responsabilidade entre quatro ferramentas |
 | 15 min | Faça o gate de [23](23-ci-gates.md) | Exit code 1 para uma regressão deliberada |
 | 35 min | Grave as respostas de [24](24-entrevista-simulada.md) | Demo de três minutos e seis respostas curtas |
 | 15 min | Resolva três [desafios](25-desafios-gabarito.md) | Hipótese, evidência e conclusão |
+
+Se sobrar fôlego, o [capítulo 20](20-rag-fora-do-projeto.md) transfere o mesmo raciocínio para um RAG minúsculo em 20 minutos — útil se a vaga mencionar recuperação, dispensável se não mencionar.
 
 Não gaste a última noite tentando dominar uma implantação completa do Langfuse ou OpenTelemetry. São aprofundamentos úteis depois de você conseguir explicar o ciclo de avaliação com precisão.
 

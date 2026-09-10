@@ -77,6 +77,8 @@ Prática: [10](10-feedback-anotacao.md) a [16](16-avaliar-workflow-agentes.md). 
 | Denominador vazio | Nenhum caso elegível para a medida | Recall HIGH ausente quando não há HIGH de referência |
 | p50 / p95 | Percentis de uma distribuição de medidas | Exigem janela, população e volume conhecidos |
 | Caminho crítico | Sequência que determina o tempo de término | Coletores paralelos não têm suas durações simplesmente somadas |
+| Tempo próprio (*self time*) | Duração de um run fora do intervalo ocupado por seus filhos | Somar filhos concorrentes pode zerar o custo aparente da orquestração |
+| Nearest-rank | Método de percentil que devolve uma observação existente | Com `n=1`, p50 e p95 são a mesma medição |
 | Retry / fallback | Nova tentativa / resposta alternativa diante da falha | Recuperação pode acrescentar latência ou preservar degradação |
 | Sampling | Seleção de parte das observações | Guardar mais erros distorce a média simples da amostra |
 | SLI / SLO | Indicador de serviço / objetivo para o indicador | Taxa de conclusão e meta em uma janela definida |

@@ -5,7 +5,7 @@ import json
 from functools import partial
 
 from _common import ARTIFACTS, manifest, parser, read_cases, session, write_json
-from _evaluators import EVALUATORS, high_risk_recall
+from _evaluators import EVALUATORS, SUMMARY_EVALUATORS, high_risk_recall
 
 
 def evaluate_local(cases: list[dict], variant: str) -> dict:
@@ -43,6 +43,7 @@ def main():
             for variant in variants:
                 results = client.evaluate(
                     partial(target, variant=variant), data=examples, evaluators=EVALUATORS,
+                    summary_evaluators=SUMMARY_EVALUATORS,
                     experiment_prefix=f"dcra-{variant}", max_concurrency=1, num_repetitions=1,
                     metadata={"variant": variant, "dataset_as_of": info["as_of"],
                               "dataset_sha256": info["source_sha256"], "evaluator_version": "contratos-v1"},

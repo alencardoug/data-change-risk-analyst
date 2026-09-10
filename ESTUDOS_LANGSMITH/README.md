@@ -7,7 +7,7 @@ Comece pelo [roteiro de três dias](00-roteiro-3-dias.md). Se estiver diante do 
 O material tem três camadas:
 
 - **Essencial:** a rota de três dias, cerca de 2–3 horas por dia, com pausas e prática oral.
-- **Bancada completa:** todos os capítulos, mais de trinta atividades e dezesseis scripts numerados.
+- **Bancada completa:** todos os capítulos, mais de trinta atividades e dezessete scripts numerados.
 - **Consulta:** [glossário](26-glossario.md), [fontes e validação](27-fontes-e-validacao.md) e [caderno de evidências](28-caderno-de-evidencias.md).
 
 Os tempos são estimativas de estudo. Não incluem criar contas ou resolver acesso à rede. Se alguma conta travar, os exercícios locais permitem continuar.
@@ -24,12 +24,12 @@ cd /home/doug/Projetos/ia/ws_datachange
 
 | Modo | O que acontece | Exemplos |
 |---|---|---|
-| Sem flags de envio/modelo | Cálculos, fixtures e grafo locais; nenhuma chamada de modelo | `01_trace_python.py`, `06_evaluate.py` |
+| Sem flags de envio/modelo | Cálculos, fixtures e grafo locais; nenhuma chamada de modelo | `01_trace_python.py`, `06_evaluate.py`, `16_consultar_runs.py` |
 | `--send` | Envia dados sintéticos ao seu workspace; pode consumir a franquia/cobrança do LangSmith | `01_trace_python.py --send` |
 | `--real` | Chama o provedor configurado no projeto, sujeito à cobrança dele | `07_real_model.py --real` |
 | `--real --send` | Chama modelo e registra traces/experimentos | `07_real_model.py --real --send` |
 
-`07_real_model.py` e `08_judge.py`, sem `--real`, mostram um ensaio sem chamar modelo. `15_langfuse.py` tem ambiente separado, explicado no capítulo 21. `12_regression_gate.py` só lê resultados locais. `00_doctor.py` só inspeciona a configuração local.
+`07_real_model.py` e `08_judge.py`, sem `--real`, mostram um ensaio sem chamar modelo. `15_langfuse.py` tem ambiente separado, explicado no capítulo 21. `12_regression_gate.py` só lê resultados locais. `00_doctor.py` só inspeciona a configuração local. `16_consultar_runs.py` agrega uma árvore sintética sem flags e, com `--send`, **lê** os runs que você já criou em vez de escrever novos.
 
 “Sem modelo” não significa que o serviço de observabilidade seja ilimitado ou gratuito. Os preços **numéricos** do laboratório de custos são explicitamente fictícios. Consulte sua conta antes de ampliar experimentos.
 
@@ -61,7 +61,7 @@ Os scripts usam um projeto de tracing próprio, `dcra-estudos`; o laboratório d
 | [19 · Privacidade e amostragem](19-privacidade-amostragem.md) | Como observar sem exportar tudo nem distorcer métricas? |
 | [20 · RAG fora do projeto](20-rag-fora-do-projeto.md) | O problema foi buscar a evidência ou usá-la? |
 | [21 · Langfuse e OpenTelemetry](21-langfuse-otel.md) | Quais conceitos continuam valendo ao trocar de ferramenta? |
-| [22 · Operação e incidentes](22-operacao-slos-incidentes.md) | O que monitorar e como investigar sob pressão? |
+| [22 · Operação e incidentes](22-operacao-slos-incidentes.md) | Como agregar traces em métricas e investigar sob pressão? |
 | [23 · Gate em CI](23-ci-gates.md) | Como uma métrica vira critério de aprovação de mudança? |
 | [24 · Entrevista simulada](24-entrevista-simulada.md) | Como explicar tudo sem exagerar o que foi implementado? |
 | [25 · Desafios e gabaritos](25-desafios-gabarito.md) | Consigo resolver sem consultar a resposta? |
