@@ -64,7 +64,7 @@ Um começo possível: “Construí um fluxo pequeno para analisar risco de mudan
 
 “Não confiaria sem verificar. Definiria uma rubrica, compararia com anotações independentes e examinaria discordâncias. Separaria fundamentação de qualidade de escrita e mediria falhas do próprio juiz. Se a API falha, a nota fica ausente; isso não equivale a aprovação nem reprovação.”
 
-**Aponte:** [15](15-juiz-llm-calibracao.md) e `dados/juiz.json`. Sem executar `--real`, você examinou a rubrica e os exemplos, mas ainda não mediu concordância do modelo. Igualdade de categoria e contrato de revisão já têm avaliadores de código.
+**Aponte:** [15](15-juiz-llm-calibracao.md), `dados/juiz.json` e o juiz simulado de `08_judge.py --fixture-biased`: 4/6 de concordância que esconde dois falsos positivos em `grounded`, um deles por injeção. Sem executar `--real`, você examinou a rubrica e viu o formato de uma discordância, mas ainda não mediu concordância de um modelo. Igualdade de categoria e contrato de revisão já têm avaliadores de código.
 
 ## Perguntas para aprofundar
 

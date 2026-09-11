@@ -61,6 +61,28 @@ C_eval ≈ N × V × R × (C_target + J × C_juiz)
 
 `N`: exemplos; `V`: variantes; `R`: repetições; `J`: juízes por resultado. Não multiplique também por concorrência: concorrência muda quantas execuções ocorrem ao mesmo tempo, não o número planejado de exemplos.
 
+## Quanto custa guardar? — a parcela da observabilidade
+
+A tabela da abertura tem uma linha que o resto do capítulo não somava: ingestão e retenção. O lab agora imprime `plataforma_mensal`, calculado por `estimativa_mensal` com uma tarifa **fictícia** (`TarifaPlataforma`) que copia só a **estrutura** da fatura documentada: a fatura tem **dois medidores**, um de ingestão, que conta todo trace do mês em qualquer faixa, e um de upgrades, que conta as promoções à retenção estendida feitas no mês — de traces ingeridos neste mês ou em outro. Na tarifa inventada: franquia de 5.000 traces ingeridos, US$0,0025 por trace ingerido, US$0,005 por upgrade e US$39 por assento.
+
+Cenário: 20.000 traces ingeridos no mês e 2.000 upgrades (feedback pela API com retenção estendida, ou avaliador com a opção ligada).
+
+```text
+ingestão   20.000 − 5.000 de franquia = 15.000 × 0,0025        = US$37,50
+upgrades   2.000 × 0,005                                       = US$10,00
+assentos                                                         US$39,00
+plataforma                                                       US$86,50
+modelo da aplicação + juiz + armazenamento externo (inventados) + US$16,00
+total                                                            US$102,50
+```
+
+Dois erros simétricos, ambos calculados pelo lab:
+
+- **Erro A — tirar o promovido da ingestão: US$81,50.** Supõe que o trace promovido “sai” da faixa base. Não sai: a ingestão já aconteceu e foi contada.
+- **Erro B — cobrar a ingestão de novo: US$91,50.** Soma ao upgrade o preço de ingestão outra vez, como se o upgrade fosse uma segunda ingestão.
+
+O segundo cenário do lab, `plataforma_mes_sem_ingestao`, é um mês com **zero** traces novos e 500 upgrades de traces antigos: a fatura é US$41,50, não zero. É o caso que a conta “traces × preço” nunca representa. A regra exata de franquia, o preço de cada medidor e o que promove um trace vêm da sua conta e da [página de preços](https://www.langchain.com/pricing); a função existe para você trocar os parâmetros, não para citar estes números. O capítulo [22](22-operacao-slos-incidentes.md) trata das condições de promoção e da saída dos dados.
+
 ## Medidor, alarme e disjuntor
 
 Um painel é o medidor. Um alerta de orçamento é o alarme. Um mecanismo que recusa uma próxima operação é o disjuntor. Não são garantias equivalentes.
@@ -71,4 +93,4 @@ O lab tem `Budget.reserve`: com US$0,010 fictício, aceita três reservas de US$
 
 **Pergunta de entrevista:** “Como reduziria custo?” Meça a parcela dominante, compare qualidade antes/depois, reduza contexto redundante, evite investigação sem benefício, limite repetições e avalie roteamento de modelo/cache com critérios explícitos. O objetivo útil pode ser **custo por caso resolvido corretamente**, e não só custo por requisição.
 
-**Memorize:** *token usage*, *cost attribution*, *cached input*, *budget enforcement*, *cost per successful task*.
+**Memorize:** *token usage*, *cost attribution*, *cached input*, *budget enforcement*, *cost per successful task*, *retention tier*.

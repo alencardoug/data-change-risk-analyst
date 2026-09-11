@@ -174,3 +174,167 @@ def test_aggregation_separates_denominators_and_respects_concurrency():
     assert tA["tempo_proprio_ms"] == 200.0
     assert result["latencia"]["collect_asset"]["n"] == 1
     assert mod.percentil([], 95) is None
+
+
+def test_biased_judge_disagrees_on_two_known_cases_and_failure_is_not_a_grade():
+    mod = importlib.import_module("08_judge")
+    cases, fixture = mod.load_cases(), mod.load_biased_fixture()
+    result = mod.summarize(mod.judge_fixture(cases, fixture), cases, fixture["notas_do_material"])
+    assert (result["n_valid"], result["n_total"], result["agreement"]) == (6, 6, 4 / 6)
+    assert [d["id"] for d in result["disagreements"]] == ["j02", "j05"]
+    assert all(d["criteria"] == ["grounded"] and d["nota_do_material"] for d in result["disagreements"])
+    # Os dois erros aceitam alegações sem sustentação: falsos positivos, o lado perigoso para um gate.
+    assert result["per_criterion"]["grounded"] == {"agreement": 4 / 6, "false_positives": 2,
+                                                   "false_negatives": 0}
+    assert result["per_criterion"]["non_binding"]["agreement"] == 1.0
+    # Uma falha do medidor sai do numerador e do denominador; não vira concordância nem zero.
+    failed = mod.summarize(mod.judge_fixture(cases, fixture, fail_id="j04"), cases)
+    assert (failed["n_valid"], failed["coverage"], failed["agreement"]) == (5, 5 / 6, 3 / 5)
+    assert failed["judge_errors"] == [{"id": "j04", "error": "ValidationError (simulada)"}]
+    assert [d["id"] for d in failed["disagreements"]] == ["j02", "j05"]
+
+
+def _rows_locais(mod):
+    import json
+
+    return [mod.normalizar_local(json.loads(line))
+            for line in (LABS.parent / "dados" / "runs.jsonl").read_text().splitlines() if line.strip()]
+
+
+def test_export_uses_closed_window_and_is_idempotent(tmp_path):
+    mod = importlib.import_module("17_exportar_runs")
+    rows = _rows_locais(mod)
+    desde, ate = (mod.instante(value) for value in mod.JANELA_LOCAL)
+    first = mod.exportar(iter(rows), desde=desde, ate=ate, destino=tmp_path, maximo=100,
+                         feedback=mod.feedback_local)
+    assert first == {"truncado": False, "maximo": 100,
+                     "runs": {"novos": 11, "ja_presentes": 0, "fora_da_janela": 3},
+                     "feedback": {"novos": 3, "ja_presentes": 0}}
+    before = mod.reconciliar(tmp_path)
+    second = mod.exportar(iter(rows), desde=desde, ate=ate, destino=tmp_path, maximo=100,
+                          feedback=mod.feedback_local)
+    assert second["runs"] == {"novos": 0, "ja_presentes": 11, "fora_da_janela": 3}
+    assert second["feedback"] == {"novos": 0, "ja_presentes": 3}
+    after = mod.reconciliar(tmp_path)
+    assert after == before and after["sha256"] == before["sha256"]
+    assert after["ids_unicos"] and after["runs"] == 11 and after["traces"] == 2 and after["raizes"] == 2
+    assert after["com_erro"] == 1 and after["feedback"] == 3 and after["feedback_sem_run_no_arquivo"] == 0
+    # A janela é fechada à direita: tC começa às 10:09 e fica para a janela seguinte.
+    later = mod.exportar(iter(rows), desde=ate, ate=mod.instante("2026-09-09T11:00:00Z"),
+                         destino=tmp_path / "seguinte", maximo=100)
+    assert later["runs"] == {"novos": 3, "ja_presentes": 0, "fora_da_janela": 11}
+
+
+def test_export_keeps_free_text_out_unless_content_is_requested(tmp_path):
+    mod = importlib.import_module("17_exportar_runs")
+    rows = _rows_locais(mod)
+    desde, ate = (mod.instante(value) for value in mod.JANELA_LOCAL)
+    mod.exportar(iter(rows), desde=desde, ate=ate, destino=tmp_path / "min", maximo=100,
+                 feedback=mod.feedback_local)
+    runs = mod.ler_jsonl(tmp_path / "min" / "runs.jsonl")
+    feedback = mod.ler_jsonl(tmp_path / "min" / "feedback.jsonl")
+    assert {run["error"] for run in runs} == {None, "TimeoutError"}  # classe, não a mensagem
+    assert all(run["inputs"] is None and run["outputs"] is None for run in runs)
+    assert all(fb["comment"] is None and fb["value"] is None for fb in feedback)
+    mod.exportar(iter(rows), desde=desde, ate=ate, destino=tmp_path / "full", maximo=100,
+                 conteudo=True, feedback=mod.feedback_local)
+    full = mod.ler_jsonl(tmp_path / "full" / "runs.jsonl")
+    assert "TimeoutError: catalogo nao respondeu" in {run["error"] for run in full}
+    comentarios = [fb["comment"] or "" for fb in mod.ler_jsonl(tmp_path / "full" / "feedback.jsonl")]
+    assert any("cs_lookup" in comentario for comentario in comentarios)
+    assert mod.classe_do_erro("ValueError('texto do usuário')") == "ValueError"
+
+
+def test_export_refuses_to_mix_identities_and_never_writes_past_the_cap(tmp_path):
+    mod = importlib.import_module("17_exportar_runs")
+    rows = _rows_locais(mod)
+    desde, ate = (mod.instante(value) for value in mod.JANELA_LOCAL)
+    ident = mod.identidade(origem="local-sintetico", desde=desde, ate=ate, conteudo=False, feedback=True)
+    assert mod.conferir_destino(tmp_path, ident) is None
+    mod.exportar(iter(rows), desde=desde, ate=ate, destino=tmp_path, maximo=100)
+    (tmp_path / "manifesto.json").write_text('{"identidade": ' + __import__("json").dumps(ident) + "}")
+    assert mod.conferir_destino(tmp_path, ident) == {"identidade": ident}
+    for outra in [dict(ident, conteudo=True), dict(ident, origem="langsmith-dcra-estudos"),
+                  dict(ident, ate=mod.instante("2026-09-09T11:00:00Z").isoformat()),
+                  dict(ident, feedback=False)]:
+        with pytest.raises(SystemExit):
+            mod.conferir_destino(tmp_path, outra)
+    # JSONL sem manifesto também não é reaproveitado: não há como saber de onde veio.
+    (tmp_path / "orfao").mkdir()
+    (tmp_path / "orfao" / "runs.jsonl").write_text("{}\n")
+    with pytest.raises(SystemExit):
+        mod.conferir_destino(tmp_path / "orfao", ident)
+    # Acima do teto nada é gravado: um arquivo parcial nunca passaria por completo.
+    result = mod.exportar(iter(rows), desde=desde, ate=ate, destino=tmp_path / "teto", maximo=3)
+    assert result["truncado"] and not (tmp_path / "teto").exists()
+    with pytest.raises(ValueError):
+        mod.exportar(iter(rows), desde=desde, ate=ate, destino=tmp_path / "zero", maximo=0)
+    assert len(mod.slug(ident)) < 80 and mod.slug(dict(ident, conteudo=True)).endswith("-conteudo")
+
+
+class _FakeRun:
+    def __init__(self, id, start, error=None, parent=None):
+        from datetime import UTC, datetime
+
+        self.id, self.trace_id, self.parent_run_id = id, f"t-{id}", parent
+        self.name, self.run_type, self.error = "dcra-iniciar", "chain", error
+        aware = datetime.fromisoformat(start.replace("Z", "+00:00")).astimezone(UTC)
+        self.start_time = aware.replace(tzinfo=None)  # o SDK pode devolver datetime sem fuso
+        self.end_time, self.status, self.tags = None, "error" if error else "success", ["estudo"]
+        self.total_tokens, self.total_cost = 12, None
+        self.inputs, self.outputs = {"text": "drop column x.y"}, {"risk": "LOW"}
+
+
+class _FakeClient:
+    def __init__(self, runs):
+        self.runs, self.calls = runs, []
+
+    def list_runs(self, **kwargs):
+        self.calls.append(kwargs)
+        yield from self.runs[: kwargs["limit"]]
+
+    def list_feedback(self, run_ids):
+        return []
+
+
+def test_remote_export_sends_both_bounds_to_the_server_and_detects_excess(tmp_path):
+    mod = importlib.import_module("17_exportar_runs")
+    desde, ate = mod.instante("2026-09-01T00:00:00Z"), mod.instante("2026-09-02T00:00:00Z")
+    client = _FakeClient([_FakeRun("r1", "2026-09-01T10:00:00Z", error="TimeoutError: catalogo x"),
+                          _FakeRun("r2", "2026-09-01T11:00:00Z"), _FakeRun("r3", "2026-09-01T12:00:00Z")])
+    result = mod.exportar(mod.consultar_remoto(client, "dcra-estudos", desde, ate, maximo=2),
+                          desde=desde, ate=ate, destino=tmp_path, maximo=2,
+                          feedback=mod.feedback_remoto(client))
+    call = client.calls[0]
+    assert call["project_name"] == "dcra-estudos" and call["limit"] == 3  # maximo + 1 detecta excesso
+    assert call["filter"] == ('and(gte(start_time, "2026-09-01T00:00:00Z"), '
+                              'lt(start_time, "2026-09-02T00:00:00Z"))')
+    assert result["truncado"] and not (tmp_path / "runs.jsonl").exists()
+    ok = mod.exportar(mod.consultar_remoto(client, "dcra-estudos", desde, ate, maximo=3),
+                      desde=desde, ate=ate, destino=tmp_path, maximo=3, feedback=mod.feedback_remoto(client))
+    assert ok["runs"] == {"novos": 3, "ja_presentes": 0, "fora_da_janela": 0}
+    linhas = mod.ler_jsonl(tmp_path / "runs.jsonl")
+    assert linhas[0]["error"] == "TimeoutError" and linhas[0]["inputs"] is None
+    assert linhas[0]["start_time"] == "2026-09-01T10:00:00+00:00"  # naive do SDK tratado como UTC
+
+
+def test_platform_estimate_bills_ingestion_and_upgrades_as_separate_meters():
+    mod = importlib.import_module("09_costs")
+    est = mod.estimativa_mensal(traces_ingeridos=20_000, upgrades_no_mes=2_000,
+                                tarifa=mod.TarifaPlataforma(), modelo_aplicacao=Decimal("12"),
+                                juiz=Decimal("3"), armazenamento_externo=Decimal("1"))
+    assert est["ingeridos_cobraveis"] == 15_000
+    assert Decimal(est["plataforma_usd"]) == Decimal("86.5")
+    # Erro A subestima (tira o promovido da ingestão); erro B superestima (cobra a ingestão de novo).
+    assert Decimal(est["erro_a_promovido_sai_da_ingestao_usd"]) == Decimal("81.5")
+    assert Decimal(est["erro_b_ingestao_cobrada_de_novo_usd"]) == Decimal("91.5")
+    assert Decimal(est["total_usd"]) == Decimal("102.5")
+    # Um mês sem ingestão ainda fatura upgrades de traces de meses anteriores.
+    zero = Decimal(0)
+    antigo = mod.estimativa_mensal(traces_ingeridos=0, upgrades_no_mes=500, tarifa=mod.TarifaPlataforma(),
+                                   modelo_aplicacao=zero, juiz=zero, armazenamento_externo=zero)
+    assert Decimal(antigo["parcelas_usd"]["ingestao"]) == 0
+    assert Decimal(antigo["plataforma_usd"]) == Decimal("41.5")
+    with pytest.raises(ValueError):
+        mod.estimativa_mensal(traces_ingeridos=-1, upgrades_no_mes=0, tarifa=mod.TarifaPlataforma(),
+                              modelo_aplicacao=Decimal(0), juiz=Decimal(0), armazenamento_externo=Decimal(0))

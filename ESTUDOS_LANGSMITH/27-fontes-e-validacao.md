@@ -2,7 +2,7 @@
 
 [Índice](README.md) · [Anterior](26-glossario.md) · [Próximo](28-caderno-de-evidencias.md)
 
-**Conferência: 9 de setembro de 2026; revisão: 10 de setembro de 2026.** Este registro distingue execução local, inspeção de API e leitura da documentação. A aprovação de testes com fixtures não valida autenticação, ingestão no SaaS ou qualidade de um modelo real.
+**Conferência: 9 de setembro de 2026; revisões: 10 e 11 de setembro de 2026.** Este registro distingue execução local, inspeção de API e leitura da documentação. A aprovação de testes com fixtures não valida autenticação, ingestão no SaaS ou qualidade de um modelo real.
 
 ## Fontes primárias consultadas
 
@@ -22,6 +22,13 @@
 | Langfuse | [SDK instrumentation](https://langfuse.com/docs/observability/sdk/instrumentation) | `start_as_current_observation`, operações filhas e `flush` |
 | OpenTelemetry no LangSmith | [Trace with OpenTelemetry](https://docs.langchain.com/langsmith/trace-with-opentelemetry) | Integração de tracing e configuração de exportação |
 | Contexto distribuído | [OpenTelemetry context propagation](https://opentelemetry.io/docs/concepts/context-propagation/) | Relação entre contexto, spans e fronteiras de serviços |
+| Avaliação como testes | [Integração com pytest](https://docs.langchain.com/langsmith/pytest) | `@pytest.mark.langsmith`, `log_inputs/outputs/reference_outputs/feedback` e o controle `LANGSMITH_TEST_TRACKING` |
+| Painéis nativos | [Dashboards](https://docs.langchain.com/langsmith/dashboards) | Existência de painéis pré-construídos e personalizados; disponibilidade a confirmar na conta |
+| Retenção e cobrança | [Administration overview](https://docs.langchain.com/langsmith/administration-overview) e [preços](https://www.langchain.com/pricing) | Faixas de retenção, promoção de traces e franquias; nenhum número foi copiado para o material |
+| Saída dos dados | [Data export](https://docs.langchain.com/langsmith/data-export) | Bulk export em Parquet para bucket S3; Enterprise para contas criadas após 3 de agosto de 2026 (Plus até 1º de fevereiro de 2027 para contas anteriores); não executado |
+| Janela de consulta | [Trace query syntax](https://docs.langchain.com/langsmith/trace-query-syntax) | `and(gte(start_time, "…Z"), lt(start_time, "…Z"))`, usado pelo lab 17 no modo `--send` |
+| Modelo de cobrança e promoção de retenção | [Administration overview](https://docs.langchain.com/langsmith/administration-overview) (seções *billing model* e *data retention auto-upgrades*) | Dois medidores na fatura (ingestão e upgrades); o que promove um trace e o que não promove |
+| Uso do app publicado | [DEPLOYMENT.md](../DEPLOYMENT.md), [schema.sql](../src/dcra/persistence/schema.sql) e [nodes.py](../src/dcra/graph/nodes.py) do próprio produto | Onde cada análise é gravada, quando (`finalize`) e como ligar o tracing em produção; capítulo 29 |
 
 As fontes descrevem capacidades das ferramentas. A interpretação didática e os exemplos vêm dos scripts deste repositório. Navegação, planos, preços e ofertas podem mudar; confirme esses detalhes na documentação e no workspace quando executar uma etapa remota. Nenhuma tabela de preços reais foi validada: os números do lab 09 são fictícios.
 
@@ -62,6 +69,9 @@ Foi verificada por introspecção a presença dos métodos e parâmetros utiliza
 | `RunTree.set(usage_metadata=...)` | Uso e custo sintéticos | Parâmetro presente; contabilidade testada localmente; sem renderização na UI |
 | Processadores de inputs/outputs | Redação dos campos registrados | Teste local compara trace processado com retorno original da função |
 | Langfuse `start_as_current_observation`, `flush` | Lab opcional de outra ferramenta | Conferência na documentação oficial; modo remoto não executado |
+| `@pytest.mark.langsmith`, `langsmith.testing.log_*` | Suíte `evals/` | Código do decorador lido no SDK: a decisão de rastrear é tomada na importação do módulo, por `LANGSMITH_TEST_TRACKING`; modo local executado 3× em teste, sem rede; modo remoto não executado |
+| `Client.list_feedback(run_ids=...)`, `list_runs(filter=..., limit=...)` | Lab 17, modo `--send` | Assinaturas locais; filtro, teto (`max + 1`) e normalização testados com cliente falso; consulta remota não executada |
+| `psycopg.connect(...)` com `read_only = True`, JSONB (`->-1`, `->>`, `@>`), `percentile_cont` | Lab 18 | Executado contra um Postgres 16 local (`docker compose`) com 28 registros de desenvolvimento e 3 inseridos pelo teste; produção (Neon) não consultada |
 
 ## Validação executada
 
@@ -71,16 +81,20 @@ O [verificador do material](verificar_material.py) tem duas partes: links/sintax
 .venv/bin/python ESTUDOS_LANGSMITH/verificar_material.py
 ```
 
-Ele roda **26 comandos**, cobrindo os **17 scripts numerados** e as variantes de casos, revisão e gate. Bloqueia chamadas de conexão/resolução via `socket` nos subprocessos e falha se detectar tentativa de rede, mesmo que o laboratório a capture. Isso é uma verificação desses comandos e caminhos Python, sem afirmar isolamento universal de qualquer código futuro.
+Ele roda **38 comandos**, cobrindo os **19 scripts numerados**, as variantes de casos, revisão e gate, o juiz simulado com e sem falha, a exportação executada duas vezes mais as duas recusas (identidade diferente e teto), e a suíte pytest de avaliação nas duas variantes, com subconjunto reprovado pelo gate e aceito com `--parcial`. O lab 18 entra só no modo que imprime o SQL; o modo `--db` é coberto pelo teste com banco. Bloqueia chamadas de conexão/resolução via `socket` nos subprocessos e falha se detectar tentativa de rede, mesmo que o laboratório a capture. Isso é uma verificação desses comandos e caminhos Python, sem afirmar isolamento universal de qualquer código futuro.
 
 | Verificação | Resultado |
 |---|---|
-| Links locais, sintaxe dos labs e JSON/JSONL | 31 documentos com destinos locais existentes; arquivos Python e dados válidos |
-| Modos locais dos laboratórios | 26 comandos com exit codes esperados; nenhuma tentativa de rede detectada |
+| Links locais, sintaxe dos labs e JSON/JSONL | 33 documentos com destinos locais existentes; arquivos Python e dados válidos |
+| Modos locais dos laboratórios | 38 comandos com exit codes esperados; nenhuma tentativa de rede detectada |
 | Avaliação determinística | Baseline: 16/16 categorias; candidata: 13/16; recall HIGH da candidata: 0/3 |
 | Gate local | Baseline termina em 0; mutação termina em 1, como esperado |
-| Testes do produto e curso, exceto o arquivo de subprocesso MCP | 67 aprovados, 19 pulados; inclui os 12 casos de teste do curso |
-| Testes de subprocesso MCP, executados separadamente | 2 aprovados fora do sandbox |
+| Suíte pytest `evals/` | Baseline: 17 aprovados, exit 0; mutação: c03, c04, c07 e o teste de conjunto falham, exit 1; `-k c01` termina em 1 pelo gate de completude e em 0 com `--parcial`; relatório igual ao do lab 06 e com hashes de `evals/` no manifesto |
+| Juiz simulado | 4/6 conjunta; `grounded` com 2 falsos positivos (j02, j05); com falha simulada em j04: cobertura 5/6, 3/5, exit 1 |
+| Exportação por SDK, modo local | 11 runs e 3 feedbacks na janela; 3 runs fora; segunda execução sem registros novos e com o mesmo SHA-256; outra identidade no mesmo diretório e excesso sobre o teto terminam em 1 sem gravar |
+| Testes do produto e do curso, `tests ESTUDOS_LANGSMITH/tests`, 11 de setembro de 2026, **sem** banco | 82 aprovados, 20 pulados em uma execução; inclui os 2 de subprocesso MCP e os 26 do curso |
+| Os mesmos testes **com** Postgres local (`docker compose up -d postgres`) | 98 aprovados, 4 pulados (só os opt-in com modelo real); os 15 testes de banco do produto e o teste do lab 18 executados |
+| Histórico: 9–10 de setembro, exceto o arquivo de subprocesso MCP | 67 aprovados, 19 pulados, com 12 casos do curso; os 2 testes MCP aprovados à parte, fora do sandbox |
 | `uv run ruff check src tests ESTUDOS_LANGSMITH` | Aprovado |
 
 Os testes foram executados com `DATABASE_URL` vazio, `RUN_LLM_TESTS=0` e tracing desativado. Os 19 skips correspondem a **15 testes que precisam de Postgres** e **4 testes opt-in com LLM**. O pytest emite seis avisos de depreciação de `ast.Str` no adaptador de avaliadores do SDK LangSmith instalado; eles não impediram os testes.
@@ -88,6 +102,8 @@ Os testes foram executados com `DATABASE_URL` vazio, `RUN_LLM_TESTS=0` e tracing
 A primeira execução completa ficou parada em `tests/mcp/test_mcp_usage_tool.py`. A repetição isolada, com timeout, também não terminou no sandbox. Esses dois testes passaram fora dele em 13,56 segundos. O resultado agregado é **69 testes aprovados e 19 pulados**, obtido em duas execuções; não se trata de uma suíte completa aprovada dentro do sandbox. O código do produto não foi alterado para contornar essa limitação.
 
 Na revisão de 10 de setembro de 2026 foram reexecutados os 67 testes fora do arquivo MCP, agora incluindo os dois casos novos do curso, mais o verificador e o `ruff`. O arquivo de subprocesso MCP **não** foi reexecutado nessa revisão: os 2 testes que ele contém seguem contados a partir da sessão anterior, e nada foi alterado em `src/` nem em `tests/mcp/` desde então.
+
+Na revisão de 11 de setembro de 2026, fora do sandbox, a suíte completa `tests ESTUDOS_LANGSMITH/tests` terminou com **82 aprovados e 20 pulados** sem banco, e com **98 aprovados e 4 pulados** com o Postgres local do `docker-compose.yml` — a primeira vez que os 15 testes de banco do produto foram executados nesta série de revisões. Os **26 casos de teste do curso** incluem catorze novos: juiz simulado, exportação — janela, texto livre, identidade, teto e cliente falso —, estimativa de plataforma, seis sobre a suíte pytest (executada em subprocesso com rede bloqueada) e dois do lab 18, um dos quais só roda com banco local alcançável e é pulado sem ele. Uma revisão do Codex no mesmo dia apontou seis problemas — mistura de origens e teto silencioso na exportação, subconjunto aprovado pelo gate, manifesto sem os arquivos de `evals/`, cobrança e retenção simplificadas demais — corrigidos antes desta contagem. `uv run pytest` sozinho, que só cobre `tests/`, terminou com 57 aprovados e 19 pulados; `ruff` aprovado em `src tests ESTUDOS_LANGSMITH`. O código do produto em `src/` não foi alterado.
 
 Para repetir a divisão utilizada:
 
@@ -114,6 +130,8 @@ O material permanece no caminho antigo de forma deliberada: o namespace `Client.
 ## O que ficou sem execução remota
 
 Nesta conferência, não foram executados envios de traces, feedback, datasets, experimentos ou prompts ao LangSmith; chamadas de modelo real dos labs 02/07/08; juízes online, filas de anotação e ações na UI; nem envio ao Langfuse ou um pipeline OpenTelemetry entre serviços.
+
+A revisão de 11 de setembro de 2026 acrescenta cinco itens do mesmo tipo: no capítulo 29, `gcloud logging read` não foi executado, nenhuma análise foi submetida ao app publicado (logo o projeto `dcra-prod` ainda não recebeu traces) e o banco de produção não foi consultado — já `create-secrets.sh` e `deploy.sh` **foram** executados nesse dia, com a revisão `dcra-00002-kcv` servindo 100% do tráfego e a configuração de tracing conferida no serviço; o modo remoto da suíte `evals/` (`DCRA_EVALS_REMOTE=1`), que criaria o dataset `dcra-evals-contratos` e um experimento por variante; o modo `--send` do lab 17, incluindo `list_feedback`; o exercício do painel nativo do capítulo 22, que não teve gráfico criado nem valor comparado; e o bulk export, que depende de plano. Todos estão escritos como procedimento, com a evidência a cargo de quem executar.
 
 Acrescentam-se, na revisão de 10 de setembro de 2026, dois itens do mesmo tipo. O `summary_evaluators` do lab 06 teve a forma da função validada contra o normalizador do SDK em teste local, mas **nenhum experimento remoto foi publicado**: não há confirmação visual de como `high_risk_recall` aparece na comparação da UI. E o modo `--send` do lab 16 **não foi executado**: a assinatura e a sintaxe do filtro vêm da docstring instalada, e o modo local, esse sim verificado, não depende dela. Trate ambos como o lab 15 do Langfuse — o caminho está escrito, a confirmação é sua.
 

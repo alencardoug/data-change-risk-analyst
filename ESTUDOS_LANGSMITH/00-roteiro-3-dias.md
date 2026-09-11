@@ -29,7 +29,7 @@ Ao terminar, consiga apontar: “a interpretação aconteceu aqui; a política d
 | 30 min | Publique dataset e compare experimentos em [13](13-experimentos-comparacao.md) | Uma linha em que a candidata regrediu |
 | 20 min | Anote com rubrica em [10](10-feedback-anotacao.md) | Uma nota com critério e trecho citado, e sua origem |
 | 20 min | Faça o lab 07 de [14](14-modelo-real-saida-estruturada.md), se a conta de modelo estiver pronta | Input, JSON retornado e critério de comparação |
-| 25 min | Leia a rubrica e execute/analise [15](15-juiz-llm-calibracao.md) | Discordância possível entre juiz e anotação manual |
+| 25 min | Leia a rubrica, rode o juiz simulado e execute/analise [15](15-juiz-llm-calibracao.md) | Duas discordâncias do juiz simulado; depois, a do juiz real, se houver |
 | 15 min | Faça [09](09-tokens-custos-orcamentos.md) | Conta de custo e efeito de repetir avaliações |
 
 Se não puder chamar um modelo, faça o ensaio dos labs 07 e 08 e deixe anotado **“não executei esta etapa com modelo real”**. Você ainda terá executado o grafo, a instrumentação e os avaliadores de código.
@@ -52,6 +52,18 @@ O capítulo 10 é o que liga os dois lados: a falha que você viu no dia 1 vira 
 Se sobrar fôlego, o [capítulo 20](20-rag-fora-do-projeto.md) transfere o mesmo raciocínio para um RAG minúsculo em 20 minutos — útil se a vaga mencionar recuperação, dispensável se não mencionar.
 
 Não gaste a última noite tentando dominar uma implantação completa do Langfuse ou OpenTelemetry. São aprofundamentos úteis depois de você conseguir explicar o ciclo de avaliação com precisão.
+
+## Blocos extras, se os três dias couberem folgados
+
+Nenhum destes altera a rota acima; são acréscimos de 11 de setembro de 2026, com evidência local e, quando indicado, remota.
+
+| Tempo | Faça | Evidência |
+|---|---|---|
+| 10 min | `08_judge.py --fixture-biased` e `--judge-error j04` em [15](15-juiz-llm-calibracao.md) | Dois falsos positivos em `grounded`; cobertura 5/6 com exit 1 |
+| 10 min | `uv run pytest ESTUDOS_LANGSMITH/evals` nas duas variantes, em [23](23-ci-gates.md) | 17 aprovados; mutação reprovada pelo exit code; `complete` no relatório |
+| 15 min | Lab 17 duas vezes e a estimativa de plataforma do lab 09, em [22](22-operacao-slos-incidentes.md) | Janela fechada, nada duplicado, parcelas separadas |
+| 20 min | Painel nativo na sua conta, em [22](22-operacao-slos-incidentes.md) — exige conta | Cinco gráficos com projeto, janela, filtro, unidade e agrupamento; comparação com o lab 16 |
+| 30 min | Tráfego, uso e custo do app publicado, em [29](29-acompanhar-producao.md) — Cloud Run, banco e LangSmith | Quatro números com denominador: visitas, casos, espera, custo; teto de gasto configurado |
 
 ## Se restarem só 90 minutos
 

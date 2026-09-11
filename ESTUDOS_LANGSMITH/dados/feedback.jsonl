@@ -1,0 +1,4 @@
+{"id": "f1", "run_id": "a0", "key": "grounded", "score": 1, "value": null, "comment": "Cita cs_lookup e quatro leituras/dia, presentes na evidência.", "created_at": "2026-09-09T10:30:00.000Z", "source": "human"}
+{"id": "f2", "run_id": "a0", "key": "non_binding", "score": 1, "value": null, "comment": "Recomenda; não alega execução.", "created_at": "2026-09-09T10:30:20.000Z", "source": "human"}
+{"id": "f3", "run_id": "b0", "key": "grounded", "score": 0, "value": null, "comment": "Afirma ausência de consumidor apesar de reads_per_day=4.", "created_at": "2026-09-09T10:31:00.000Z", "source": "human"}
+{"id": "f4", "run_id": "c0", "key": "erro_tecnico", "score": 0, "value": "GraphRecursionError", "comment": "Registrado por código ao detectar o erro da raiz.", "created_at": "2026-09-09T10:32:00.000Z", "source": "api"}

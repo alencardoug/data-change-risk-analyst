@@ -76,7 +76,7 @@ Situação hipotética: deveriam existir seis avaliações, mas quatro terminara
 
 Reporte concordância **2/2 nas avaliações válidas**, cobertura **2/6** e **4/6 erros do juiz**. Não anuncie “100% de qualidade em seis casos”. A concordância mede relação com a referência manual; a disponibilidade do medidor é outra medida.
 
-O [lab 08](labs/08_judge.py) mantém `agreement=None` em caso de erro e separa `n_valid` de `n_total`. Sem `--real`, ele só apresenta os casos e as anotações: os números deste desafio são hipotéticos, não resultado desse comando. Se nenhuma avaliação for válida, concordância fica ausente, não 0 ou 100%.
+O [lab 08](labs/08_judge.py) mantém `agreement=None` em caso de erro e separa `n_valid` de `n_total`. Sem `--real`, ele só apresenta os casos e as anotações: os números deste desafio são hipotéticos, não resultado desse comando. Para ver a mecânica com um erro de verdade, rode `--fixture-biased --judge-error j04`: cobertura 5/6, concordância 3/5 e exit code 1. Se nenhuma avaliação for válida, concordância fica ausente, não 0 ou 100%.
 
 </details>
 

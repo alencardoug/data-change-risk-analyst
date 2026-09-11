@@ -31,9 +31,9 @@ rg -n 'create_agent|RECURSION_LIMIT' src/dcra/agent/investigator.py
 
 **No produto:** integração automática de LangChain/LangGraph com LangSmith, configuração por ambiente, testes determinísticos com dependências falsas, testes opcionais com modelo real, checkpoints e registro de negócio. A documentação anterior de [observabilidade](../docs/observability.md) é o ponto de partida.
 
-**Acrescentado como estudo:** tracing manual de Python, dataset de avaliação, comparação baseline/candidata, rubrica de juiz, exemplos de custo, versionamento de prompts, RAG didático e uma demonstração opcional de Langfuse.
+**Acrescentado como estudo:** tracing manual de Python, dataset de avaliação, comparação baseline/candidata, rubrica de juiz e um juiz simulado que erra, a mesma avaliação como suíte pytest, exemplos de custo com estimativa de retenção, exportação de runs por SDK com manifesto, leitura do uso real a partir do banco do app, versionamento de prompts, RAG didático e uma demonstração opcional de Langfuse.
 
-**Ainda não implantado no produto:** programa contínuo de eval online, dashboards/SLOs de qualidade, gates de release orientados por evals, implantação de Langfuse e coleta distribuída com OpenTelemetry. Os capítulos ensinam a projetar ou experimentar essas capacidades; não atribuem esse histórico à aplicação publicada.
+**Ainda não implantado no produto:** programa contínuo de eval online, dashboards/SLOs de qualidade, gates de release orientados por evals, implantação de Langfuse e coleta distribuída com OpenTelemetry. Os capítulos ensinam a projetar ou experimentar essas capacidades; não atribuem esse histórico à aplicação publicada. O [plano de desenvolvimento](PLANO_DE_DESENVOLVIMENTO.md) registra por que essas cinco continuam adiadas e o que as destravaria.
 
 ## Quatro correções úteis à leitura dos documentos antigos
 

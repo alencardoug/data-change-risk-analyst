@@ -49,11 +49,25 @@ def check_scripts() -> None:
           for action in ["approve", "reject", "return", "return-evidence"]],
         (["03_failures.py"], 0), (["04_feedback.py"], 0), (["05_dataset.py"], 0),
         (["06_evaluate.py"], 0), (["07_real_model.py"], 0), (["08_judge.py"], 0),
+        (["08_judge.py", "--fixture-biased"], 0),
+        (["08_judge.py", "--fixture-biased", "--judge-error", "j04"], 1),
         (["09_costs.py"], 0), (["10_privacy.py"], 0), (["11_rag.py"], 0),
         (["12_regression_gate.py", "--candidate", "baseline"], 0),
         (["12_regression_gate.py", "--candidate", "bug"], 1),
         (["13_prompts.py"], 0), (["14_context.py"], 0), (["15_langfuse.py"], 0),
         (["16_consultar_runs.py"], 0),
+        # Duas vezes de propósito: a segunda execução precisa terminar sem duplicar registros.
+        (["17_exportar_runs.py"], 0), (["17_exportar_runs.py"], 0),
+        # Mesmo destino com outra identidade (conteúdo) é recusado; acima do teto nada é gravado.
+        (["17_exportar_runs.py", "--conteudo", "--destino",
+          "ESTUDOS_LANGSMITH/artefatos/17-export/local-sintetico-2026-09-09T100000Z_2026-09-09T100800Z"], 1),
+        (["17_exportar_runs.py", "--max", "3", "--destino", "ESTUDOS_LANGSMITH/artefatos/17-export/teto"], 1),
+        (["18_uso_producao.py"], 0), (["18_uso_producao.py", "--dias", "0"], 1),
+        # Suíte pytest de avaliação: baseline aprovada; mutação reprovada; subconjunto só passa com --parcial.
+        (["pytest", "ESTUDOS_LANGSMITH/evals"], 0),
+        (["pytest", "ESTUDOS_LANGSMITH/evals", "--variant", "bug"], 1),
+        (["pytest", "ESTUDOS_LANGSMITH/evals", "-k", "c01"], 1),
+        (["pytest", "ESTUDOS_LANGSMITH/evals", "-k", "c01", "--parcial"], 0),
     ]
     with tempfile.TemporaryDirectory(prefix="dcra-labs-offline-") as tmp:
         marker = Path(tmp) / "network-attempts.txt"
@@ -70,9 +84,13 @@ def check_scripts() -> None:
             "socket.getaddrinfo = blocked\n"
         )
         env = os.environ | {"PYTHONPATH": tmp, "DCRA_LAB_NETWORK_MARKER": str(marker),
-                           "LANGSMITH_TRACING": "false", "LANGCHAIN_TRACING_V2": "false"}
+                           "LANGSMITH_TRACING": "false", "LANGCHAIN_TRACING_V2": "false",
+                           "DCRA_EVALS_REMOTE": "0"}
         for args, expected in commands:
-            command = [sys.executable, str(COURSE / "labs" / args[0]), *args[1:]]
+            if args[0] == "pytest":
+                command = [sys.executable, "-m", "pytest", *args[1:], "-q", "-p", "no:cacheprovider"]
+            else:
+                command = [sys.executable, str(COURSE / "labs" / args[0]), *args[1:]]
             try:
                 result = subprocess.run(command, cwd=ROOT, env=env, capture_output=True,
                                         text=True, timeout=40, check=False)

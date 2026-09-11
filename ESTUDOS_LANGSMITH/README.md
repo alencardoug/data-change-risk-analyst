@@ -7,7 +7,7 @@ Comece pelo [roteiro de três dias](00-roteiro-3-dias.md). Se estiver diante do 
 O material tem três camadas:
 
 - **Essencial:** a rota de três dias, cerca de 2–3 horas por dia, com pausas e prática oral.
-- **Bancada completa:** todos os capítulos, mais de trinta atividades e dezessete scripts numerados.
+- **Bancada completa:** todos os capítulos, mais de trinta atividades, dezenove scripts numerados e uma suíte de avaliação em pytest.
 - **Consulta:** [glossário](26-glossario.md), [fontes e validação](27-fontes-e-validacao.md) e [caderno de evidências](28-caderno-de-evidencias.md).
 
 Os tempos são estimativas de estudo. Não incluem criar contas ou resolver acesso à rede. Se alguma conta travar, os exercícios locais permitem continuar.
@@ -29,7 +29,7 @@ cd /home/doug/Projetos/ia/ws_datachange
 | `--real` | Chama o provedor configurado no projeto, sujeito à cobrança dele | `07_real_model.py --real` |
 | `--real --send` | Chama modelo e registra traces/experimentos | `07_real_model.py --real --send` |
 
-`07_real_model.py` e `08_judge.py`, sem `--real`, mostram um ensaio sem chamar modelo. `15_langfuse.py` tem ambiente separado, explicado no capítulo 21. `12_regression_gate.py` só lê resultados locais. `00_doctor.py` só inspeciona a configuração local. `16_consultar_runs.py` agrega uma árvore sintética sem flags e, com `--send`, **lê** os runs que você já criou em vez de escrever novos.
+`07_real_model.py` e `08_judge.py`, sem `--real`, mostram um ensaio sem chamar modelo; `08_judge.py --fixture-biased` aplica um juiz simulado que erra de propósito. `15_langfuse.py` tem ambiente separado, explicado no capítulo 21. `12_regression_gate.py` só lê resultados locais. `00_doctor.py` só inspeciona a configuração local. `16_consultar_runs.py` e `17_exportar_runs.py` trabalham sobre dados sintéticos sem flags e, com `--send`, **leem** os runs que você já criou em vez de escrever novos. A suíte `evals/` roda com `uv run pytest ESTUDOS_LANGSMITH/evals` e só publica no LangSmith com `DCRA_EVALS_REMOTE=1` (capítulo 23). `18_uso_producao.py` imprime consultas SQL sem flags e, com `--db`, **lê** o banco do app em transação somente leitura (capítulo 29).
 
 “Sem modelo” não significa que o serviço de observabilidade seja ilimitado ou gratuito. Os preços **numéricos** do laboratório de custos são explicitamente fictícios. Consulte sua conta antes de ampliar experimentos.
 
@@ -68,6 +68,7 @@ Os scripts usam um projeto de tracing próprio, `dcra-estudos`; o laboratório d
 | [26 · Glossário](26-glossario.md) | Quais termos preciso reconhecer e usar corretamente? |
 | [27 · Fontes e validação](27-fontes-e-validacao.md) | Quais APIs foram conferidas e o que foi realmente executado? |
 | [28 · Caderno](28-caderno-de-evidencias.md) | Onde registro meus traces, conclusões e respostas? |
+| [29 · Acompanhar produção](29-acompanhar-producao.md) | Alguém usa o app publicado, o que faz nele e quanto custa? (bloco extra) |
 
 ## O ciclo que conecta os blocos
 
@@ -83,5 +84,7 @@ flowchart LR
 ```
 
 Este curso acrescenta **material de estudo e adaptadores de laboratório**. O código do produto continua congelado. Quando usamos o grafo real com dependências falsas, isso aparece como `fixture`. Quando uma prática ainda não existe na aplicação publicada, o capítulo a identifica como extensão de estudo.
+
+Para quem mantém o material: o [plano de desenvolvimento](PLANO_DE_DESENVOLVIMENTO.md) registra as lacunas apontadas no parecer e no mapa, o que foi implementado como estudo em 11 de setembro de 2026, o que ainda depende de conta ou plano, e por que as etapas que alterariam o produto continuam adiadas.
 
 Não precisa decorar a posição de cada botão. Precisa saber qual pergunta fazer, qual evidência procurar e qual conclusão essa evidência permite. A interface é o microscópio; a engenharia é o raciocínio de quem olha pela lente.

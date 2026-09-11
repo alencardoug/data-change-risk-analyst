@@ -73,6 +73,7 @@ Prática: [10](10-feedback-anotacao.md) a [16](16-avaliar-workflow-agentes.md). 
 | Accuracy / acerto | Proporção de respostas corretas no conjunto contado | `13/16` para a categoria da candidata com bug |
 | Recall HIGH | Fração dos HIGH de referência identificados como HIGH | Denominador são os HIGH reais; neste lab, três |
 | Falso negativo | Caso positivo que o detector deixa passar | HIGH classificado como LOW |
+| Falso positivo (do juiz) | Alegação sem sustentação aceita como sustentada | j02 e j05 no juiz simulado; é o erro que deixa uma resposta ruim passar |
 | Completude / cobertura | Quanto do trabalho esperado foi executado ou observado | Duas avaliações válidas entre seis previstas |
 | Denominador vazio | Nenhum caso elegível para a medida | Recall HIGH ausente quando não há HIGH de referência |
 | p50 / p95 | Percentis de uma distribuição de medidas | Exigem janela, população e volume conhecidos |
@@ -83,6 +84,7 @@ Prática: [10](10-feedback-anotacao.md) a [16](16-avaliar-workflow-agentes.md). 
 | Sampling | Seleção de parte das observações | Guardar mais erros distorce a média simples da amostra |
 | SLI / SLO | Indicador de serviço / objetivo para o indicador | Taxa de conclusão e meta em uma janela definida |
 | Quality gate | Política de aceitação aplicada às medidas | Recusar perda de revisão dos casos HIGH |
+| Test tracking | Envio de exemplos, saídas e feedback de uma suíte de testes à plataforma | `LANGSMITH_TEST_TRACKING=false` desliga; é separado do tracing |
 
 Prática: [07](07-falhas-latencia-retries.md), [12](12-evals-deterministicos.md), [19](19-privacidade-amostragem.md), [22](22-operacao-slos-incidentes.md) e [23](23-ci-gates.md). As fórmulas deste curso estão nos [avaliadores locais](labs/_evaluators.py).
 
@@ -95,6 +97,8 @@ Prática: [07](07-falhas-latencia-retries.md), [12](12-evals-deterministicos.md)
 | Cost attribution | Atribuir custo às operações/casos responsáveis | Evitar somar custos agregados de pais e filhos |
 | Budget enforcement | Recusar trabalho que ultrapassaria uma política de gasto | `Budget.reserve` é uma simulação local |
 | Custo por sucesso | Custo dividido pelos casos concluídos segundo o critério de sucesso | Reduzir custo por request pode piorar esse indicador |
+| Retention tier | Faixa de retenção de um trace, base ou estendida | A ingestão conta todo trace; a promoção é um evento cobrado à parte, só por feedback via API com extensão pedida, avaliador ou regra com a opção ligada |
+| Exportação idempotente | Reexecutar a exportação da mesma identidade não duplica registros | `novos: 0, ja_presentes: 11` e o mesmo SHA-256 no lab 17; outra identidade exige outro diretório |
 | Snapshot | Versão dos dados fixada para uma avaliação | O `as_of` utilizado para ler exemplos |
 | Hash / commit | Identificador de conteúdo / revisão versionada | O hash não substitui armazenar os arquivos correspondentes |
 | Tag / alias mutável | Nome que pode apontar para revisões diferentes | `prod` ou `latest` exige registrar a revisão resolvida |

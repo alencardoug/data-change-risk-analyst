@@ -43,6 +43,6 @@ Ao encontrar “não existem consumidores” quando a evidência mostra `reads_p
 
 O output observado é o objeto sob avaliação. **Não o aceite automaticamente como referência correta.** Corrija a referência ou escreva uma rubrica/assertion de aceitação; verifique quais inputs o target precisará receber. [Criação de datasets pela UI](https://docs.langchain.com/langsmith/manage-datasets-in-application).
 
-Feedback, filas e datasets podem ter implicações de retenção/cobrança diferentes das de um trace apenas recebido. Consulte a [documentação de retenção](https://docs.langchain.com/langsmith/administration-overview) e a sua conta ao ampliar esse uso.
+Feedback, filas e datasets têm implicações de retenção/cobrança próprias — e diferentes entre si: pela documentação lida em 11 de setembro de 2026, feedback e notas pela UI não mudam a faixa de retenção do trace; feedback pela API só promove com `extend_trace_retention=true`; e entrar numa fila de anotação não promove por padrão. Consulte a [documentação de retenção](https://docs.langchain.com/langsmith/administration-overview) e a sua conta ao ampliar esse uso; a tabela por tipo de dado está no [capítulo 22](22-operacao-slos-incidentes.md).
 
 **Memorize:** *rubric*, *human annotation*, *feedback provenance*, *inter-annotator agreement*. Na entrevista, uma boa frase é: “Eu não usaria a aprovação de negócio como rótulo automático de qualidade; definiria critérios separados e guardaria a origem de cada anotação.”

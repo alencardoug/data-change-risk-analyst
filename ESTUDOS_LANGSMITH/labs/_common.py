@@ -60,6 +60,7 @@ def manifest() -> dict[str, Any]:
         ["git", "status", "--porcelain"], cwd=ROOT, text=True, capture_output=True, check=False
     )
     paths = sorted((COURSE / "labs").glob("*.py"))
+    paths += sorted((COURSE / "evals").glob("*.py"))  # coleta, agregação e política do gate
     paths += sorted((ROOT / "src" / "dcra").rglob("*.py"))
     paths += sorted((COURSE / "dados").glob("*.json*"))
     paths += [ROOT / "uv.lock", ROOT / "pyproject.toml"]

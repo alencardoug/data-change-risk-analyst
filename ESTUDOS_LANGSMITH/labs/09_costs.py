@@ -28,6 +28,48 @@ class Budget:
         return True
 
 
+@dataclass
+class TarifaPlataforma:
+    """Tarifa FICTÍCIA com a estrutura da fatura documentada: um medidor de ingestão e outro de upgrades."""
+    franquia_traces: int = 5_000  # traces ingeridos incluídos no mês
+    preco_trace_ingerido: Decimal = Decimal("0.0025")  # cobrado de todo trace ingerido, de qualquer faixa
+    preco_upgrade: Decimal = Decimal("0.005")  # promoção à retenção estendida: evento à parte, quando ocorre
+    assentos: int = 1
+    preco_assento: Decimal = Decimal("39")
+
+
+def estimativa_mensal(*, traces_ingeridos: int, upgrades_no_mes: int, tarifa: TarifaPlataforma,
+                      modelo_aplicacao: Decimal, juiz: Decimal, armazenamento_externo: Decimal) -> dict:
+    """Dois medidores separados: ingestão do mês e upgrades do mês, que podem ser de traces de outro mês."""
+    if traces_ingeridos < 0 or upgrades_no_mes < 0:
+        raise ValueError("Contagens não negativas.")
+    ingeridos_cobraveis = max(0, traces_ingeridos - tarifa.franquia_traces)
+    plataforma = {
+        "ingestao": ingeridos_cobraveis * tarifa.preco_trace_ingerido,
+        "upgrades": upgrades_no_mes * tarifa.preco_upgrade,
+        "assentos": tarifa.assentos * tarifa.preco_assento,
+    }
+    parcelas = {**plataforma, "modelo_aplicacao": modelo_aplicacao, "juiz": juiz,
+                "armazenamento_externo": armazenamento_externo}
+    # Erro A: supor que o trace promovido sai do medidor de ingestão (subestima).
+    promovidos_do_mes = min(upgrades_no_mes, traces_ingeridos)
+    ingeridos_sem_promovidos = max(0, traces_ingeridos - promovidos_do_mes - tarifa.franquia_traces)
+    erro_a = (ingeridos_sem_promovidos * tarifa.preco_trace_ingerido
+              + plataforma["upgrades"] + plataforma["assentos"])
+    # Erro B: cobrar a ingestão de novo no mês do upgrade (superestima).
+    erro_b = (plataforma["ingestao"] + upgrades_no_mes * (tarifa.preco_trace_ingerido + tarifa.preco_upgrade)
+              + plataforma["assentos"])
+    return {
+        "precos": "FICTICIOS", "traces_ingeridos": traces_ingeridos,
+        "ingeridos_cobraveis": ingeridos_cobraveis, "upgrades_no_mes": upgrades_no_mes,
+        "parcelas_usd": {k: str(v) for k, v in parcelas.items()},
+        "plataforma_usd": str(sum(plataforma.values(), Decimal(0))),
+        "erro_a_promovido_sai_da_ingestao_usd": str(erro_a),
+        "erro_b_ingestao_cobrada_de_novo_usd": str(erro_b),
+        "total_usd": str(sum(parcelas.values(), Decimal(0))),
+    }
+
+
 def synthetic_generation(inputs: dict) -> dict:
     from langsmith import get_current_run_tree
 
@@ -54,6 +96,14 @@ def main():
               "wrong_sum_parents_and_children_usd": str(double_counted),
               "reservations_accepted": accepted, "reserved_usd": str(budget.reserved),
               "eval_target_calls": 16 * 2 * 3, "eval_judge_calls_if_one_per_target": 16 * 2 * 3}
+    # Mês típico: 20 mil traces ingeridos e 2 mil upgrades (feedback via API/avaliador com retenção ligada).
+    result["plataforma_mensal"] = estimativa_mensal(
+        traces_ingeridos=20_000, upgrades_no_mes=2_000, tarifa=TarifaPlataforma(),
+        modelo_aplicacao=Decimal("12"), juiz=Decimal("3"), armazenamento_externo=Decimal("1"))
+    # Mês sem ingestão: só upgrades de traces antigos. A fatura não é zero.
+    result["plataforma_mes_sem_ingestao"] = estimativa_mensal(
+        traces_ingeridos=0, upgrades_no_mes=500, tarifa=TarifaPlataforma(),
+        modelo_aplicacao=Decimal(0), juiz=Decimal(0), armazenamento_externo=Decimal(0))
     print(result)
     with session(args, lab="09-custo-sintetico") as client:
         if client:

@@ -50,7 +50,7 @@ A navegação, filtros, sampling e limites estão descritos no [guia atual de ju
 
 A documentação atual oferece limites semanais de gasto para avaliadores anexados a projetos/datasets, com comportamento de pausa ao alcançar o limite. Isso **não é um teto de gasto do LLM da sua aplicação**, nem controla automaticamente o loop Python do lab 08. Confira o escopo efetivo mostrado na sua conta.
 
-Executar um avaliador online pode elevar o trace à retenção estendida e mudar sua cobrança. A regra pode continuar ativa depois de uma aplicação retroativa a runs anteriores. Faça a demonstração pequena e entenda o efeito persistente antes de ampliar.
+Um avaliador online eleva o trace à retenção estendida **se a opção de retenção do avaliador estiver ligada** — é uma configuração, e o upgrade é cobrado como evento à parte. Confira essa opção ao criar a regra e registre-a no caderno. A regra pode continuar ativa depois de uma aplicação retroativa a runs anteriores. Faça a demonstração pequena e entenda o efeito persistente antes de ampliar; o [capítulo 22](22-operacao-slos-incidentes.md) separa os ciclos de retenção por tipo de dado e estima o efeito no custo.
 
 ## Um limite conceitual
 

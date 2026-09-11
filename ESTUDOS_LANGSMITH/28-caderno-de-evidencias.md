@@ -1,6 +1,6 @@
 # 28 · Meu caderno de evidências
 
-[Índice](README.md) · [Anterior](27-fontes-e-validacao.md) · [Roteiro de três dias](00-roteiro-3-dias.md)
+[Índice](README.md) · [Anterior](27-fontes-e-validacao.md) · [Próximo: acompanhar produção](29-acompanhar-producao.md) · [Roteiro de três dias](00-roteiro-3-dias.md)
 
 Este é um modelo para suas anotações. Copie as seções que precisar para um arquivo pessoal, por exemplo `ESTUDOS_LANGSMITH/artefatos/meu-caderno.md`. A pasta `artefatos/` é ignorada pelo Git. Use um nome próprio: os laboratórios sobrescrevem seus JSONs de nomes fixos quando são reexecutados.
 
@@ -81,6 +81,8 @@ Se executei o modelo real: quantidade de exemplos/repetições, `structure_exact
 
 Se executei o juiz real: rubrica, concordância entre avaliações válidas, `n_valid/n_total`, discordância que examinei:
 
+Juiz simulado (`--fixture-biased`): as duas discordâncias que eu encontrei **antes** de ler as notas do material; falsos positivos por critério; o que mudou com `--judge-error j04`:
+
 Se não executei essas etapas reais, o que pratiquei no ensaio:
 
 Conta de custo que refiz à mão, com indicação de preços fictícios ou fonte/data de preços reais:
@@ -94,6 +96,11 @@ Conta de custo que refiz à mão, com indicação de preços fictícios ou fonte
 | RAG | Falha de recuperação versus resposta sem apoio no contexto | |
 | Langfuse / OpenTelemetry | Leitura, ensaio ou execução remota efetivamente realizada | |
 | Gate | Baseline aceita; mutação recusada; motivo e exit code | |
+| Suíte pytest `evals/` | 17 aprovados na baseline; casos e teste de conjunto que falham com `--variant bug`; exit de `-k c01` com e sem `--parcial`; `complete` do relatório | |
+| Exportação (lab 17) | Identidade e diretório; `novos/ja_presentes/fora_da_janela` nas duas execuções, SHA-256 igual; recusa com `--conteudo` no mesmo diretório; modo `--send` executado ou não | |
+| Retenção e custo | Parâmetros que troquei em `estimativa_mensal` e a fonte/data dos preços, ou “fictício” | |
+| Painel nativo | Projeto, janela, filtro, unidade e agrupamento de cada gráfico; volume/erro iguais ao lab 16?; latência: método | |
+| Produção (cap. 29) | Teto de gasto definido; visitas na janela (com e sem robôs); casos, risco, espera p50/p95 com `n` do lab 18; tracing ligado ou não; custo por caso e como o calculei | |
 | Desafios | Número, hipótese original e correção depois do gabarito | |
 
 Para cada resposta do [capítulo 24](24-entrevista-simulada.md), marque de 0 a 4: um ponto por conceito correto, evidência, trade-off e limite da conclusão.

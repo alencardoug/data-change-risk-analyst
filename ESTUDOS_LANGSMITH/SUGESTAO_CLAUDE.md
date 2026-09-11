@@ -112,6 +112,8 @@ Nada disso é bloqueante para a entrevista. Em ordem de retorno:
 3. **Retenção, cobrança e exportação em massa.** Aparecem de passagem nos capítulos 10 e 18. Numa entrevista sobre operação, “quanto custa guardar isso e como tiro os dados daqui” é pergunta frequente.
 4. **Um caso em que o juiz LLM erra e você percebe.** O capítulo 15 ensina calibração muito bem no procedimento, mas o aluno nunca vê uma discordância concreta sem chamar modelo. Seis anotações fixture com um juiz fixture deliberadamente enviesado dariam esse momento sem gastar nada.
 
+*Atualização de 11 de setembro de 2026:* os itens 2 e 4 foram implementados e validados localmente (`evals/` e `08_judge.py --fixture-biased`); os itens 1 e 3 ganharam procedimento, script de exportação e estimativa, com a evidência remota pendente de conta. O estado por item está no [plano de desenvolvimento](PLANO_DE_DESENVOLVIMENTO.md). O parecer acima permanece como foi escrito.
+
 ## Como eu usaria este material
 
 Se o prazo for de três dias, siga o roteiro como está agora — ele cobre os 25 capítulos práticos e cabe em 2h40 por sessão. Se for menos, a rota de 90 minutos preserva os argumentos mais demonstráveis, e eu acrescentaria só o lab 16: quatro taxas de erro corretas e incompatíveis é a coisa mais rápida de contar que demonstra maturidade real.

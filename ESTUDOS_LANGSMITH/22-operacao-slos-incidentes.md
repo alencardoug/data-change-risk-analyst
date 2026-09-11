@@ -2,7 +2,7 @@
 
 [Índice](README.md) · [Anterior](21-langfuse-otel.md) · [Próximo](23-ci-gates.md)
 
-**Objetivo:** transformar traces em métricas defensáveis e investigar um incidente com ordem. Tempo: 30–40 minutos. Código: [16_consultar_runs.py](labs/16_consultar_runs.py). Os limites numéricos abaixo são exemplos de desenho, não SLOs implantados no DCRA.
+**Objetivo:** transformar traces em métricas defensáveis, investigar um incidente com ordem e saber quanto custa guardar os dados e como tirá-los da plataforma. Tempo: 40–50 minutos. Código: [16_consultar_runs.py](labs/16_consultar_runs.py) e [17_exportar_runs.py](labs/17_exportar_runs.py). Os limites numéricos abaixo são exemplos de desenho, não SLOs implantados no DCRA.
 
 Um painel com “tokens totais” é útil para volume, mas não responde se os usuários conseguem concluir uma análise correta. Comece pela jornada: pedido recebido, interpretação concluída, evidências obtidas, análise entregue, revisão finalizada quando exigida.
 
@@ -77,6 +77,36 @@ Os filtros usam a linguagem de consulta do LangSmith, com operadores como `eq`, 
 
 **Aviso de versão.** No `langsmith` 0.11.1 deste repositório, `Client.list_runs` está marcado como *deprecated*, com remoção anunciada para depois de 31 de janeiro de 2027 e migração para `Client.runs.query`. O mesmo vale para `Client.read_run` e `Client.get_run_url`, usados por [_common.py](labs/_common.py) para imprimir a URL do trace. O curso continua no caminho antigo de propósito: ele é síncrono e funciona na conta gerenciada, enquanto `Client.runs` é assíncrono e exige backend `0.16` ou superior em instalação própria. Registre a data e verifique a sua versão antes de copiar este código para um projeto que vai durar.
 
+## Laboratório — o painel nativo, na sua conta
+
+O lab 16 calcula as medidas em código. A plataforma desenha as mesmas medidas em gráficos, e a pergunta útil é se os dois concordam quando olham **a mesma população na mesma janela**. Este exercício precisa de conta; sem ela, leia o procedimento e registre a lacuna.
+
+1. Gere um conjunto pequeno e identificado de traces num projeto só para isto:
+
+   ```bash
+   .venv/bin/python ESTUDOS_LANGSMITH/labs/01_trace_python.py --send --project dcra-estudos-painel
+   .venv/bin/python ESTUDOS_LANGSMITH/labs/04_feedback.py --send --project dcra-estudos-painel
+   .venv/bin/python ESTUDOS_LANGSMITH/labs/03_failures.py --send --project dcra-estudos-painel
+   ```
+
+   Isso dá um trace de sucesso com feedback e quatro cenários de falha/retry, com metadados `environment=lab` e `synthetic=true`. Anote a hora de início e de fim, com fuso.
+
+2. Abra o projeto `dcra-estudos-painel` no [LangSmith](https://smith.langchain.com) e procure a área de dashboards. A [documentação atual](https://docs.langchain.com/langsmith/dashboards) descreve painéis pré-construídos por projeto e gráficos personalizados; confirme na sua conta o que está disponível, porque isso varia por plano e muda com o tempo.
+
+3. Monte, ou localize no painel pronto, cinco gráficos: **volume de raízes**, **raízes com erro**, **latência p50/p95**, **tokens/custo** (vai aparecer vazio ou fictício aqui — não há modelo real) e **feedback**. Para cada um, escreva no caderno: projeto, janela, filtro, unidade e agrupamento. Um gráfico sem essas cinco informações é decoração.
+
+4. Compare com o código, sobre a mesma população:
+
+   ```bash
+   .venv/bin/python ESTUDOS_LANGSMITH/labs/16_consultar_runs.py --send --dias 1 --project dcra-estudos-painel --operacao ler_catalogo
+   ```
+
+   Volume e erro devem bater exatamente se a janela for a mesma. Latência pode divergir: o lab usa *nearest-rank*; a UI usa o método dela, que a documentação nem sempre nomeia. Registre a diferença como diferença de método, não como “um dos dois está errado”, e registre o `n`.
+
+5. Guarde a configuração de cada gráfico como texto, sem capturas com chave ou conteúdo sensível. Se um gráfico não existir na sua conta, escreva isso; não descreva uma tela que você não viu.
+
+**O que este material não afirma:** nenhum painel foi criado durante a validação do curso, e nenhum valor da UI foi comparado com o lab 16. O procedimento acima é o exercício; a evidência é sua. Para o app **publicado** — e não os traces de estudo — o [capítulo 29](29-acompanhar-producao.md) liga o tracing em produção e junta o painel ao banco e ao Cloud Run.
+
 ## SLI, SLO e error budget
 
 **SLI** é a medida. **SLO** é a meta operacional definida sobre ela em uma janela. Exemplo fictício: “99% das análises elegíveis entregam um resultado técnico válido em até 10 segundos, numa janela de sete dias”. É preciso especificar elegibilidade, o que conta como resultado válido e como revisões humanas entram no cálculo.
@@ -109,6 +139,49 @@ Também monitore atraso de ingestão, falhas de exportação, coverage de tracin
 
 Use IDs de alta cardinalidade, como caso/run, para busca e correlação. Para gráficos agregados, prefira dimensões controladas como operação, ambiente e versão. Transformar cada texto de usuário em série de métrica torna o painel difícil de operar.
 
+## Retenção, cobrança e saída dos dados
+
+Numa entrevista sobre operação, “quanto custa guardar isso e como tiro os dados daqui” aparece cedo. Quatro tipos de dado têm ciclos diferentes, e misturá-los é o erro mais comum:
+
+| Dado | Onde vive | Retenção e cobrança | Como sai |
+|---|---|---|---|
+| Trace de rotina | projeto de tracing | fica na faixa **base** (14 dias na consulta de 11 de setembro de 2026) e conta no medidor de ingestão; é a maior parte do volume | consulta por SDK, exportação em massa |
+| Trace promovido à faixa **estendida** | mesmo projeto | a promoção é um **evento cobrado à parte**, quando ocorre — pode cair no mês seguinte ao da ingestão | idem |
+| Feedback e anotações | ligados ao run | feedback e notas **pela UI não mudam a faixa**; feedback **pela API/SDK só promove com `extend_trace_retention=true`**; entrar numa fila de anotação não promove por padrão | `list_feedback`, exportação |
+| Avaliadores online e regras de automação | configuração do projeto | promovem o trace **se a opção de retenção do avaliador/regra estiver ligada**; é uma escolha de configuração, não um efeito automático | — |
+| Datasets e experimentos | fora dos projetos de tracing | datasets têm retenção indefinida; runs de experimentos nascem na faixa estendida | SDK de datasets |
+| Cópias exportadas | seu disco, bucket ou repositório | passam a ser **sua** responsabilidade: prazo, acesso, sanitização | você decide |
+
+Condições e mecanismos acima vêm da [documentação de administração](https://docs.langchain.com/langsmith/administration-overview), lida em 11 de setembro de 2026 — inclusive o prazo da faixa estendida, que aparece com valores diferentes em páginas diferentes e por isso não está na tabela. Preços vêm da [página de preços](https://www.langchain.com/pricing). Tudo isso muda; registre a data da consulta e confira no workspace qual configuração de retenção os seus avaliadores têm.
+
+**Quanto custa guardar.** O lab 09 ganhou uma estimativa parametrizada, `estimativa_mensal`, com preços **fictícios** e a **estrutura** da fatura documentada: um medidor de ingestão, que conta todo trace do mês, e um medidor de upgrades, que conta as promoções do mês — inclusive de traces ingeridos em meses anteriores. Ela mostra os dois erros simétricos: tirar o trace promovido da ingestão (subestima) e cobrar a ingestão de novo no mês do upgrade (superestima). Troque os parâmetros pelos da sua conta antes de citar um número.
+
+**Tirar os dados.** O lab 17 faz uma exportação pequena por SDK:
+
+```bash
+.venv/bin/python ESTUDOS_LANGSMITH/labs/17_exportar_runs.py
+.venv/bin/python ESTUDOS_LANGSMITH/labs/17_exportar_runs.py   # de novo: nada é duplicado
+```
+
+Sem `--send`, a fonte é a árvore sintética de [runs.jsonl](dados/runs.jsonl) mais [feedback.jsonl](dados/feedback.jsonl). A janela padrão vai de 10:00 a 10:08 e é **fechada à esquerda e aberta à direita**: `tA` e `tB` entram (11 runs), `tC` começa às 10:09 e fica de fora (`fora_da_janela: 3`). A segunda execução relata `novos: 0, ja_presentes: 11` e o SHA-256 do arquivo não muda — a mesma propriedade que torna uma retomada segura depois de uma interrupção. Saem três arquivos em `artefatos/17-export/<origem>-<janela>/`: `runs.jsonl`, `feedback.jsonl` e `manifesto.json`, com a **identidade** da exportação (origem, janela, opções), a lista de execuções, a reconciliação (ids únicos, raízes, erros, filhos sem pai no arquivo, feedback sem run) e o manifesto de versões.
+
+Três regras protegem o manifesto de mentir:
+
+- **Um diretório, uma identidade.** O nome do diretório vem de origem, janela e opções, e o script recusa gravar num diretório cujo manifesto tenha outra identidade — local → remoto, projeto A → B, outra janela ou `--conteudo` depois de uma exportação sem conteúdo. Experimente: `17_exportar_runs.py --conteudo --destino <o diretório da execução anterior>` termina em exit 1.
+- **Acima do teto, nada.** `--max` é o teto de runs **dentro da janela**; o script pede `max + 1` ao servidor para saber se há excesso e, havendo, não grava nada: `17_exportar_runs.py --max 3` termina em exit 1 com a orientação de reduzir a janela. Um arquivo parcial nunca é apresentado como completo.
+- **Sem `--conteudo`, sem texto livre.** Por padrão saem metadados; `inputs`/`outputs` ficam de fora, a mensagem de erro é reduzida à classe (`TimeoutError`, não `TimeoutError: catalogo nao respondeu`) e `comment`/`value` do feedback saem como nulos — uma mensagem de exceção ou um comentário humano pode carregar entrada do usuário. `--conteudo` libera tudo, e o manifesto registra a escolha.
+
+Com conta, o mesmo script lê o seu projeto:
+
+```bash
+.venv/bin/python ESTUDOS_LANGSMITH/labs/17_exportar_runs.py --send --project dcra-estudos --dias 1
+.venv/bin/python ESTUDOS_LANGSMITH/labs/17_exportar_runs.py --send --project dcra-estudos --desde 2026-09-10T00:00:00Z --ate 2026-09-11T00:00:00Z --conteudo
+```
+
+Uma cópia local é uma cópia a mais para proteger ([19](19-privacidade-amostragem.md)); por isso o padrão é sem texto livre. Os dois limites da janela vão ao servidor pela [linguagem de consulta](https://docs.langchain.com/langsmith/trace-query-syntax) — `and(gte(start_time, "…Z"), lt(start_time, "…Z"))` — e a checagem local continua como verificação; o manifesto guarda o filtro enviado. Como no lab 16, o caminho usa `list_runs`, deprecado no SDK instalado — a decisão está registrada acima. **O modo `--send` não foi executado na validação do material**; o filtro, o teto e a normalização foram testados com um cliente falso.
+
+Isso **não** é o bulk export nativo. Esse recurso, segundo a [documentação consultada](https://docs.langchain.com/langsmith/data-export) em 11 de setembro de 2026, grava Parquet num bucket compatível com S3 e é pago: contas criadas depois de 3 de agosto de 2026 só o têm no plano Enterprise; contas anteriores, em Plus ou Enterprise até 1º de fevereiro de 2027. O plano gratuito (Developer) cobre todo o resto do curso. Se a sua conta permitir, registre destino, job, campos, contagem e a leitura posterior do arquivo; se não permitir, deixe o item como pendente em vez de descrever um job que não rodou.
+
 **Exercício oral:** alguém apresenta “nossa taxa de erro é 21%”. Faça as três perguntas que decidem se esse número significa alguma coisa. Sugestão: qual é o denominador, qual é a janela, e uma falha recuperada por retry conta?
 
-**Memorize:** *SLI*, *SLO*, *error budget*, *p95*, *nearest-rank*, *self time*, *cardinality*, *ingestion lag*, *root cause analysis*.
+**Memorize:** *SLI*, *SLO*, *error budget*, *p95*, *nearest-rank*, *self time*, *cardinality*, *ingestion lag*, *root cause analysis*, *retention tier*, *idempotent export*.
