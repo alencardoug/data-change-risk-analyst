@@ -160,9 +160,7 @@ Possíveis evoluções, se um dia forem retomadas:
 - Aplicação assistida do DDL (gerar o `ALTER`/`DROP` + plano de rollback).
 - Autenticação e multiusuário (o campo "revisor" já antecipa essa separação).
 
-Defeito conhecido e **não** corrigido: o dropdown de "casos em aberto" em
-*Reabrir um caso* não popula no ambiente publicado (reabrir por `thread_id`
-funciona) — ver `KNOWN_ISSUES.md`.
+Defeitos conhecidos: nenhum em aberto — histórico em `KNOWN_ISSUES.md`.
 
 ---
 

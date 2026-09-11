@@ -123,43 +123,62 @@ def is_awaiting_review(compiled: Any, thread_id: str) -> bool:
 
 
 def list_open_cases(
-    compiled: Any, *, limit: int = 5, scan: int = 60
+    compiled: Any, *, limit: int = 5, min_open: int = 3, scan: int = 60, max_scan: int = 480
 ) -> list[tuple[str, str]]:
     """The most recent cases paused at the human-review gate, newest first.
 
-    Returns ``(thread_id, label)`` pairs. ``scan`` bounds how many raw checkpoints we walk
-    before giving up (there are several per thread); ``limit`` caps the returned list. Reads
-    only the checkpointer — no schema of its own. Best-effort: returns ``[]`` on any error or
-    when the checkpointer cannot enumerate threads (e.g. MemorySaver in another process)."""
-    try:
-        checkpointer = compiled.checkpointer
-        # Materialise fully: calling compiled.get_state() while the .list() generator is still
-        # open would re-enter the saver's non-reentrant lock on the same connection (deadlock).
-        tuples = list(checkpointer.list(None, limit=scan))
-    except Exception:
-        return []
+    Returns ``(thread_id, label)`` pairs, at most ``limit``. Reads only the checkpointer — no
+    schema of its own. Best-effort: returns what it found so far on any error, and ``[]`` when
+    the checkpointer cannot enumerate threads (e.g. MemorySaver in another process).
 
+    ``checkpointer.list(None, limit=n)`` walks *raw checkpoints* across all threads — several
+    per thread — so a fixed window silently drops a paused case once a handful of later runs
+    push its checkpoints past the window (see KNOWN_ISSUES.md). The window therefore starts at
+    ``scan`` rows and doubles until at least ``min_open`` open cases are found, the checkpointer
+    is exhausted, or ``max_scan`` rows have been walked (~7 checkpoints per case, so 480 rows
+    look back roughly 65 cases). Widening re-reads the earlier rows, but threads already
+    inspected are not re-checked, and a case whose newest checkpoint is FINALIZED is terminal,
+    so only threads that may still be open cost a ``get_state()`` round trip."""
+    checkpointer = getattr(compiled, "checkpointer", None)
+    min_open = min(min_open, limit)
     seen: set[str] = set()
-    out: list[tuple[str, str]] = []
-    for tup in tuples:
-        tid = tup.config.get("configurable", {}).get("thread_id")
-        if not tid or tid in seen:
-            continue
-        seen.add(tid)
+    found: dict[str, tuple[str, str]] = {}  # thread_id -> (newest checkpoint id, label)
+    window = scan
+    while True:
         try:
-            snap = compiled.get_state({"configurable": {"thread_id": tid}})
+            # Materialise fully: calling compiled.get_state() while the .list() generator is
+            # still open would re-enter the saver's non-reentrant lock on the same connection
+            # (deadlock).
+            tuples = list(checkpointer.list(None, limit=window))
         except Exception:
-            continue
-        if not (snap.next and "human_review" in snap.next):
-            continue
-        vals = snap.values or {}
-        cr = vals.get("change_request")
-        risk = vals.get("risk")
-        raw = (getattr(cr, "raw_text", "") or "").strip().replace("\n", " ")
-        who = getattr(cr, "submitted_by", "") or "?"
-        cat = risk.category.value if risk else "?"
-        label = f"{raw[:60] or '(sem texto)'} · {cat} · {who}"
-        out.append((tid, label))
-        if len(out) >= limit:
             break
-    return out
+        for tup in tuples:
+            tid = tup.config.get("configurable", {}).get("thread_id")
+            if not tid or tid in seen:
+                continue
+            seen.add(tid)
+            # Savers yield a thread's checkpoints newest first, so this is its current state.
+            values = tup.checkpoint.get("channel_values") or {}
+            if values.get("status") == CaseStatus.FINALIZED:
+                continue
+            try:
+                snap = compiled.get_state({"configurable": {"thread_id": tid}})
+            except Exception:
+                continue
+            if not (snap.next and "human_review" in snap.next):
+                continue
+            vals = snap.values or {}
+            cr = vals.get("change_request")
+            risk = vals.get("risk")
+            raw = (getattr(cr, "raw_text", "") or "").strip().replace("\n", " ")
+            who = getattr(cr, "submitted_by", "") or "?"
+            cat = risk.category.value if risk else "?"
+            label = f"{raw[:60] or '(sem texto)'} · {cat} · {who}"
+            found[tid] = (tup.checkpoint["id"], label)
+        if len(found) >= min_open or len(tuples) < window or window >= max_scan:
+            break
+        window = min(window * 2, max_scan)
+    # Checkpoint ids are time-ordered (uuid6), so this is newest first whatever order the saver
+    # enumerated threads in (PostgresSaver: global; MemorySaver: insertion order).
+    newest_first = sorted(found.items(), key=lambda item: item[1][0], reverse=True)
+    return [(tid, label) for tid, (_, label) in newest_first[:limit]]

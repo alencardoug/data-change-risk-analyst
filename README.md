@@ -22,7 +22,7 @@ Completo em funcionalidades, publicado e **congelado**: nenhuma mudança adicion
 - **No ar:** https://analisador-de-risco.web.app
 - **Stack em produção:** Cloud Run (`us-east1`, scale-to-zero) + Neon Postgres + Firebase Hosting (redirect 301). Runbook em [`DEPLOYMENT.md`](DEPLOYMENT.md).
 - **Texto de portfólio:** [`PORTFOLIO.md`](PORTFOLIO.md) · Documentos aprofundados em português em [`DOCS_EXPLICATIVOS/`](DOCS_EXPLICATIVOS/).
-- **Defeitos conhecidos e não corrigidos:** [`KNOWN_ISSUES.md`](KNOWN_ISSUES.md).
+- **Defeitos conhecidos:** [`KNOWN_ISSUES.md`](KNOWN_ISSUES.md) (nenhum em aberto; histórico dos resolvidos).
 
 ---
 

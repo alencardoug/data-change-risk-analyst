@@ -501,8 +501,9 @@ if state:
 @st.cache_data(ttl=15, show_spinner=False)
 def _open_cases(db_url: str | None) -> list[tuple[str, str]]:
     # `db_url` is the cache key (a plain str) so the result is reused across reruns; ttl bounds
-    # staleness. `_graph()` is itself a cached resource, so this is a dict lookup plus one
-    # checkpointer scan, not a graph rebuild.
+    # staleness. `_graph()` is itself a cached resource, so this is a dict lookup plus a bounded
+    # checkpointer scan (`list_open_cases` widens its window until it has found a few open
+    # cases), not a graph rebuild.
     return list_open_cases(_graph())
 
 
