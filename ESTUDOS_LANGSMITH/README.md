@@ -70,6 +70,8 @@ Os scripts usam um projeto de tracing próprio, `dcra-estudos`; o laboratório d
 | [28 · Caderno](28-caderno-de-evidencias.md) | Onde registro meus traces, conclusões e respostas? |
 | [29 · Acompanhar produção](29-acompanhar-producao.md) | Alguém usa o app publicado, o que faz nele e quanto custa? (bloco extra) |
 
+Cada capítulo de 00 a 29 termina com a seção **“Levar para outros projetos — e onde o seu julgamento decide”**, acrescentada em 11 de setembro de 2026. Ela transfere o conteúdo da unidade para a plataforma de atendimento (instrumentada com Langfuse Cloud) e para projetos comuns de LangChain/LangGraph/LangSmith/Langfuse, e destaca, em cada tema, o que um assistente de IA faz bem e onde a crítica humana é o diferencial — o ponto em que vale concentrar o estudo.
+
 ## O ciclo que conecta os blocos
 
 ```mermaid
