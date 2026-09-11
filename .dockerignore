@@ -24,3 +24,4 @@ docker-compose.yml
 .env
 .env.*
 !.env.example
+ESTUDOS_LANGSMITH/

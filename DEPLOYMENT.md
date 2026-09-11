@@ -28,7 +28,10 @@ Expected to stay within free tiers for demo-level traffic:
   so a suspend/resume is transparent.
 - **Firebase Hosting** (Spark plan): no card required.
 - **OpenAI API**: unchanged — already billed for local dev; production traffic
-  volume is independent of the infra above.
+  volume is independent of the infra above. The app is public and
+  unauthenticated: set a monthly spend cap on the OpenAI side.
+- **LangSmith**: Developer plan, free up to its monthly trace allowance
+  (5k base traces at the time of writing); demo traffic is far below that.
 
 ## One-time provisioning (needs your own login — cannot run unattended)
 
@@ -73,6 +76,7 @@ From the repo root, with `gcloud`/`firebase` authenticated and the project set:
 # 1. Secrets (idempotent — re-run to rotate)
 export DATABASE_URL='postgresql://…neon.tech/dcra?sslmode=require'
 export OPENAI_API_KEY='sk-…'
+export LANGSMITH_API_KEY='lsv2_…'
 deploy/create-secrets.sh
 
 # 2. Create the tables in Neon (idempotent): analysis_record, the LangGraph
@@ -98,11 +102,16 @@ between deploys of the same service).
 
 | Source | Keys |
 |---|---|
-| Secret Manager | `DATABASE_URL` = `dcra-database-url`, `OPENAI_API_KEY` = `dcra-openai-api-key` |
-| `--set-env-vars` | `LLM_PROVIDER=openai`, `LLM_MODEL=gpt-4o`, `DCRA_REVISION_LIMIT=2`, `DCRA_USAGE_VIA_MCP=0`, `LANGSMITH_TRACING=false` |
+| Secret Manager | `DATABASE_URL` = `dcra-database-url`, `OPENAI_API_KEY` = `dcra-openai-api-key`, `LANGSMITH_API_KEY` = `dcra-langsmith-api-key` |
+| `--set-env-vars` | `LLM_PROVIDER=openai`, `LLM_MODEL=gpt-4o`, `DCRA_REVISION_LIMIT=2`, `DCRA_USAGE_VIA_MCP=0`, `LANGSMITH_TRACING=true`, `LANGSMITH_PROJECT=dcra-prod` |
 
-To enable LangSmith in production, add `LANGSMITH_API_KEY` as a third secret
-and flip `LANGSMITH_TRACING=true` in `deploy.sh`.
+LangSmith tracing is on in production since 2026-09-11, into the dedicated
+`dcra-prod` project (never the local `dcra` or the course's `dcra-estudos`).
+`deploy.sh` refuses to deploy if any of the three secrets is missing. To turn
+tracing off: `LANGSMITH_TRACING=false deploy/deploy.sh` — the app does not
+depend on LangSmith to run. Each `run`/`resume` is one root run; a case with a
+review has two or more roots sharing a `thread_id`. How to read usage, cost and
+traffic together is in `ESTUDOS_LANGSMITH/29-acompanhar-producao.md`.
 
 ## Smoke test after deploy
 

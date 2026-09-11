@@ -6,12 +6,23 @@
 # Prerequisites (one-time — see DEPLOYMENT.md):
 #   - gcloud auth login && gcloud config set project <PROJECT_ID>
 #   - Run + Cloud Build + Secret Manager APIs enabled
-#   - deploy/create-secrets.sh already run (dcra-database-url, dcra-openai-api-key)
+#   - deploy/create-secrets.sh already run (dcra-database-url, dcra-openai-api-key,
+#     dcra-langsmith-api-key)
 #   - deploy/init-db.sh already run against the Neon DATABASE_URL
 set -euo pipefail
 
 SERVICE="${SERVICE:-dcra}"
 REGION="${REGION:-us-east1}"   # Cloud Run Always Free: us-central1 | us-east1 | us-west1
+# LangSmith tracing in production (2026-09-11): on, into its own project so prod
+# traces never mix with local dev (`dcra`) or the course labs (`dcra-estudos`).
+# Flip to false to turn it off; the app does not depend on LangSmith to run.
+LANGSMITH_TRACING="${LANGSMITH_TRACING:-true}"
+LANGSMITH_PROJECT="${LANGSMITH_PROJECT:-dcra-prod}"
+
+for secret in dcra-database-url dcra-openai-api-key dcra-langsmith-api-key; do
+  gcloud secrets describe "$secret" >/dev/null 2>&1 \
+    || { echo "Missing secret $secret — run deploy/create-secrets.sh first." >&2; exit 1; }
+done
 
 gcloud run deploy "$SERVICE" \
   --source . \
@@ -22,8 +33,8 @@ gcloud run deploy "$SERVICE" \
   --cpu=1 \
   --memory=1Gi \
   --timeout=3600 \
-  --set-secrets="DATABASE_URL=dcra-database-url:latest,OPENAI_API_KEY=dcra-openai-api-key:latest" \
-  --set-env-vars="LLM_PROVIDER=openai,LLM_MODEL=gpt-4o,DCRA_REVISION_LIMIT=2,DCRA_USAGE_VIA_MCP=0,LANGSMITH_TRACING=false"
+  --set-secrets="DATABASE_URL=dcra-database-url:latest,OPENAI_API_KEY=dcra-openai-api-key:latest,LANGSMITH_API_KEY=dcra-langsmith-api-key:latest" \
+  --set-env-vars="LLM_PROVIDER=openai,LLM_MODEL=gpt-4o,DCRA_REVISION_LIMIT=2,DCRA_USAGE_VIA_MCP=0,LANGSMITH_TRACING=${LANGSMITH_TRACING},LANGSMITH_PROJECT=${LANGSMITH_PROJECT}"
 
 echo
 echo "Service URL:"
