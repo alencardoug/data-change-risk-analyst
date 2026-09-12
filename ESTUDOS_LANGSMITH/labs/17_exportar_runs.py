@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from collections.abc import Callable, Iterable
@@ -12,6 +13,10 @@ from _common import ARTIFACTS, COURSE, ROOT, digest, manifest, parser, session
 
 JANELA_LOCAL = ("2026-09-09T10:00:00Z", "2026-09-09T10:08:00Z")  # tA e tB dentro; tC (10:09) fora.
 LOTE_FEEDBACK = 100
+# A API v2 só devolve os campos pedidos. Texto livre (inputs/outputs) só sai do servidor com --conteudo.
+CAMPOS = ["ID", "TRACE_ID", "PARENT_RUN_IDS", "NAME", "RUN_TYPE", "START_TIME", "END_TIME", "ERROR",
+          "STATUS", "TAGS", "TOTAL_TOKENS", "TOTAL_COST"]
+CAMPOS_CONTEUDO = ["INPUTS", "OUTPUTS"]
 
 
 def instante(valor: str | datetime) -> datetime:
@@ -30,9 +35,10 @@ def na_janela(run: dict, desde: datetime, ate: datetime) -> bool:
     return desde <= instante(run["start_time"]) < ate
 
 
-def filtro_janela(desde: datetime, ate: datetime) -> str:
-    """Os dois limites vão ao servidor; a checagem local continua como verificação."""
-    return f'and(gte(start_time, "{iso_z(desde)}"), lt(start_time, "{iso_z(ate)}"))'
+def janela_servidor(desde: datetime, ate: datetime) -> dict:
+    """Os dois limites vão ao servidor. Sem `min_start_time` a API v2 assume 1 dia: a janela é sempre
+    explícita. O servidor não promete o limite superior aberto; `na_janela` o garante localmente."""
+    return {"min_start_time": iso_z(desde), "max_start_time": iso_z(ate)}
 
 
 def normalizar_local(row: dict) -> dict:
@@ -45,13 +51,15 @@ def normalizar_local(row: dict) -> dict:
 
 
 def normalizar_remoto(run) -> dict:
+    """Run da API v2 → mesmos nomes do arquivo local. `parent_run_ids` é a cadeia de ancestrais,
+    da raiz ao pai direto; run_type/status vêm em maiúsculas na especificação e são normalizados."""
     return {"id": str(run.id), "trace_id": str(run.trace_id),
-            "parent_run_id": str(run.parent_run_id) if run.parent_run_id else None,
-            "name": run.name, "run_type": run.run_type,
+            "parent_run_id": str(run.parent_run_ids[-1]) if run.parent_run_ids else None,
+            "name": run.name, "run_type": run.run_type.lower() if run.run_type else None,
             "start_time": instante(run.start_time).isoformat(),
             "end_time": instante(run.end_time).isoformat() if run.end_time else None,
-            "error": run.error, "status": run.status, "tags": list(run.tags or []),
-            "total_tokens": run.total_tokens,
+            "error": run.error, "status": run.status.lower() if run.status else None,
+            "tags": list(run.tags or []), "total_tokens": run.total_tokens,
             "total_cost": str(run.total_cost) if run.total_cost is not None else None,
             "inputs": run.inputs, "outputs": run.outputs}
 
@@ -184,10 +192,21 @@ def feedback_local(ids: list[str]) -> list[dict]:
     return [fb for fb in ler_jsonl(COURSE / "dados" / "feedback.jsonl") if fb["run_id"] in alvo]
 
 
-def consultar_remoto(client, projeto: str, desde: datetime, ate: datetime, maximo: int) -> Iterable[dict]:
-    """Pede maximo+1 para detectar excesso. list_runs está deprecado no SDK 0.11.1: ver capítulo 22."""
-    for run in client.list_runs(project_name=projeto, filter=filtro_janela(desde, ate), limit=maximo + 1):
-        yield normalizar_remoto(run)
+async def consultar_remoto(client, projeto: str, desde: datetime, ate: datetime, maximo: int,
+                           *, conteudo: bool = False) -> list[dict]:
+    """Consulta v2 (assíncrona): projeto por UUID, janela no servidor, só os campos que serão gravados.
+    Lê até maximo+1 runs dentro da janela: o excedente é o que `exportar` usa para recusar o lote."""
+    projeto_remoto = await client.aread_project(project_name=projeto)
+    linhas, dentro = [], 0
+    async for run in client.runs.query(project_ids=[str(projeto_remoto.id)], **janela_servidor(desde, ate),
+                                       selects=CAMPOS + (CAMPOS_CONTEUDO if conteudo else []),
+                                       page_size=min(maximo + 1, 1000)):
+        linha = normalizar_remoto(run)
+        linhas.append(linha)
+        dentro += na_janela(linha, desde, ate)
+        if dentro > maximo:
+            break
+    return linhas
 
 
 def feedback_remoto(client) -> Callable[[list[str]], list[dict]]:
@@ -230,7 +249,8 @@ def main():
         destino = Path(args.destino) if args.destino else ARTIFACTS / "17-export" / slug(ident)
         anterior = conferir_destino(destino, ident)
         if client:
-            fonte = consultar_remoto(client, args.project, desde, ate, args.max)
+            fonte = asyncio.run(consultar_remoto(client, args.project, desde, ate, args.max,
+                                                 conteudo=args.conteudo))
             feedback = None if args.sem_feedback else feedback_remoto(client)
         else:
             fonte = (normalizar_local(row) for row in ler_jsonl(COURSE / "dados" / "runs.jsonl"))
@@ -247,7 +267,7 @@ def main():
     manifesto = {
         "identidade": ident,
         "janela": {"desde": desde.isoformat(), "ate": ate.isoformat(), "fechada_a_direita": True,
-                   "filtro_no_servidor": filtro_janela(desde, ate) if client else None},
+                   "filtro_no_servidor": janela_servidor(desde, ate) if client else None},
         "conteudo_incluido": args.conteudo,
         "texto_livre_incluido": args.conteudo,
         "feedback_incluido": not args.sem_feedback,

@@ -1,6 +1,7 @@
 """Anexa ao trace do laboratório 01 uma nota calculada em código."""
 
 import json
+from datetime import datetime
 
 from _common import ARTIFACTS, parser, session
 
@@ -15,12 +16,16 @@ def main():
     print(f"lab_total_correto={score}; origem=API/código, não anotação humana")
     with session(args, lab="04-feedback") as client:
         if client:
-            if not saved["sent"]:
-                raise SystemExit("O trace anterior era local. Rode 01_trace_python.py --send primeiro.")
+            if not saved["sent"] or "start_time" not in saved:
+                raise SystemExit("O trace salvo é local ou antigo. Rode 01_trace_python.py --send primeiro.")
+            # O run é localizado pelo projeto (session_id) e pela hora de início, não só pelo id.
+            project = client.read_project(project_name=saved["project"])
             feedback = client.create_feedback(
                 saved["run_id"], key="lab_total_correto", score=score,
                 comment="Critério sintético: dois itens de R$18 devem somar R$36.",
                 feedback_source_type="api",
+                session_id=project.id, trace_id=saved["run_id"],  # raiz: trace_id == run_id
+                start_time=datetime.fromisoformat(saved["start_time"]),
             )
             print(f"Feedback criado: {feedback.id}. Abra o trace do laboratório 01.")
 

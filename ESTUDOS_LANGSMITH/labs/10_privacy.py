@@ -2,8 +2,8 @@
 
 import re
 
-from _common import parser, session, traced_call, write_json
-from langsmith import traceable
+from _common import parser, session, show_trace, write_json
+from langsmith import trace, traceable
 
 EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 
@@ -27,13 +27,13 @@ def main():
     args = parser(__doc__).parse_args()
     raw = {"email": "pessoa@example.com"}
     with session(args, lab="10-privacidade") as client:
-        # O wrapper externo também recebe SOMENTE a entrada já redigida.
-        # A função contact usa o raw sintético dentro da closure e seus próprios processadores.
-        def outer(inputs):
-            output = contact(raw)
-            return redact(output)
-
-        output, _ = traced_call(client, args.project, "privacidade", outer, redact(raw))
+        # O run raiz recebe SOMENTE entrada e saída já redigidas; `contact` continua vendo o e-mail
+        # sintético e aplica os próprios processadores ao seu run filho.
+        with trace("privacidade", inputs=redact(raw)) as run:
+            output = redact(contact(raw))
+            run.end(outputs=output)
+        if client:
+            show_trace(client, args.project, str(run.id), start_time=run.start_time)
     print("Entrada original local:", raw)
     print("Saída local de contact (sem tracing):")
     # Não chamamos novamente a função decorada fora da session para evitar um root extra.

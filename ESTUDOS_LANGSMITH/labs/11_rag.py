@@ -1,7 +1,7 @@
 """RAG de papel: separa erro de recuperação de erro de resposta, sem embeddings/LLM."""
 
-from _common import parser, session, traced_call, write_json
-from langsmith import traceable
+from _common import parser, session, show_trace, write_json
+from langsmith import trace, traceable
 
 DOCS = {
     "prazo": "Pedidos podem ser devolvidos em até 7 dias após a entrega.",
@@ -44,8 +44,12 @@ def main():
     rows = []
     with session(args, lab="11-rag") as client:
         for mode in ["good", "bad_retrieval", "hallucination"]:
-            output, _ = traced_call(client, args.project, f"rag-{mode}", rag,
-                                    {"question": "Qual é o prazo de devolução?", "mode": mode})
+            inputs = {"question": "Qual é o prazo de devolução?", "mode": mode}
+            with trace(f"rag-{mode}", inputs=inputs) as run:
+                output = rag(inputs)
+                run.end(outputs=output)
+            if client:
+                show_trace(client, args.project, str(run.id), start_time=run.start_time)
             row = {"mode": mode, "outputs": output, "scores": score(output)}
             print(row)
             rows.append(row)

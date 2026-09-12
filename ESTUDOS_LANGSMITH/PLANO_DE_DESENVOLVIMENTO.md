@@ -33,6 +33,8 @@ A proposta abaixo foi adaptada antes de executar. O critério: fazer tudo o que 
 
 **Uma correção pontual no produto, decidida em 11 de setembro de 2026.** A pedido, o deploy passou a ligar o tracing do LangSmith em produção (`LANGSMITH_TRACING=true`, projeto `dcra-prod`, terceiro segredo). É configuração — nenhum arquivo em `src/` mudou — e é reversível por variável de ambiente. O status congelado em `CLAUDE.md` permanece. A mudança foi publicada no mesmo dia (revisão `dcra-00002-kcv`); o capítulo 29 registra a verificação.
 
+**Migração para a API v2 do SDK — 12 de setembro de 2026.** A UI acusou *Legacy API usage detected*; os labs usavam `read_run`, `get_run_url` e `list_runs` (deprecados, remoção após 31 de janeiro de 2027) e `create_feedback` sem `session_id`. Todos os labs e arquivos ligados foram revistos: `trace(...)`/`run.end` no lugar do wrapper `traced_call`; `client.runs.get_url` e `client.runs.query` (assíncronos, via `asyncio.run`) no lugar dos métodos legados; feedback com `session_id`/`start_time`; `read_dataset_version(tag="latest")`. Foi preciso atualizar o `langsmith` para 0.12.4 (só o `uv.lock`, não versionado): na 0.11.1 o cliente v2 falhava ao conectar por misturar `httpx` e `httpx2`. Nenhum arquivo em `src/` mudou. Detalhes e evidência no [capítulo 27](27-fontes-e-validacao.md).
+
 **Validação da execução.** `uv run pytest` (57 aprovados, 19 pulados), `uv run pytest ESTUDOS_LANGSMITH/tests` (26 aprovados, catorze novos; um deles só com Postgres local), `uv run ruff check src tests ESTUDOS_LANGSMITH`, e `verificar_material.py` com 38 comandos sem tentativa de rede. Uma revisão do Codex no mesmo dia apontou seis correções (proveniência e teto da exportação, gate sobre subconjunto, manifesto da suíte, modelo de cobrança e condições de retenção), todas aplicadas. Detalhes e o que ficou sem execução remota estão no [capítulo 27](27-fontes-e-validacao.md).
 
 ## 1. Escopo e ponto de partida
@@ -59,7 +61,7 @@ Constatações do repositório que mudam a ordem do trabalho:
 - [tests/conftest.py](../tests/conftest.py) desliga tracing automaticamente. A integração pytest precisará de configuração própria, incluindo o controle separado de envio de resultados.
 - O MCP atual usa um subprocesso por `stdio` e está desligado no deploy. Spans locais ou um exemplo de restaurante não demonstram coleta distribuída do DCRA.
 
-O ambiente local inspecionado contém `langsmith 0.11.1`, `langchain 1.3.18`, `langgraph 1.2.11` e `pytest 9.1.1`. O [capítulo 27](27-fontes-e-validacao.md) registra depreciações em métodos de consulta do SDK; a compatibilidade será verificada antes de criar novas integrações duradouras.
+O ambiente local inspecionado continha `langsmith 0.11.1`, `langchain 1.3.18`, `langgraph 1.2.11` e `pytest 9.1.1`. Em 12 de setembro de 2026 o `langsmith` foi atualizado para 0.12.4 e os labs migraram para a API v2 (SmithDB); o [capítulo 27](27-fontes-e-validacao.md) registra o que mudou, o defeito da 0.11.1 que forçou a atualização e o que foi executado remotamente.
 
 ## 2. Sequência, esforço e dependências
 

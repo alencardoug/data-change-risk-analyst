@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import hashlib
 import json
 import os
@@ -10,12 +11,12 @@ import platform
 import subprocess
 import sys
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import Iterator
 from contextlib import contextmanager
+from datetime import datetime
 from importlib.metadata import version
 from pathlib import Path
 from typing import Any
-from uuid import uuid4
 
 from dotenv import load_dotenv
 
@@ -107,31 +108,28 @@ def session(args: argparse.Namespace, *, lab: str) -> Iterator[Any]:
             client.flush(timeout=10)
 
 
-def traced_call(client: Any, project: str, name: str, fn: Callable, inputs: dict,
-                *, metadata: dict | None = None) -> tuple[dict, str]:
-    from langsmith import traceable
+def show_trace(client: Any, project: str, run_id: str, *, start_time: datetime | None = None) -> None:
+    """URL autenticada do run, pedida ao endpoint v2 do LangSmith; nunca um link montado à mão.
 
-    run_id = str(uuid4())
-    output = traceable(fn, name=name)(
-        inputs, langsmith_extra={"run_id": run_id, "metadata": metadata or {}}
-    )
-    if client is not None:
-        show_trace(client, project, run_id)
-    return output, run_id
-
-
-def show_trace(client: Any, project: str, run_id: str) -> None:
-    """URL autenticada obtida do SDK, nunca um link público inventado."""
+    No SmithDB um run é endereçado por (projeto, trace_id, run_id); `start_time` é opcional e
+    acelera a busca. Aqui o run é sempre a raiz, logo trace_id == run_id. Os métodos v2 do SDK
+    (`client.runs.*`) são assíncronos: `asyncio.run` executa a corrotina neste script síncrono.
+    """
+    from langsmith import NotFoundError
     from langsmith.utils import LangSmithNotFoundError
 
     client.flush(timeout=10)
     print(f"run_id: {run_id}")
-    for attempt in range(3):
+    for attempt in range(3):  # o projeto e o run podem levar instantes para ficar consultáveis
         try:
-            run = client.read_run(run_id)
-            print(f"Trace: {client.get_run_url(run=run, project_name=project)}")
-            return
-        except LangSmithNotFoundError:
+            project_id = str(client.read_project(project_name=project).id)
+            response = asyncio.run(client.runs.get_url(
+                run_id, project_id=project_id, trace_id=run_id, start_time=start_time))
+            if response.url:
+                print(f"Trace: {response.url}")
+                return
+            time.sleep(0.5 * (attempt + 1))
+        except (LangSmithNotFoundError, NotFoundError):
             time.sleep(0.5 * (attempt + 1))
         except Exception as exc:
             print(f"URL ainda indisponível ({type(exc).__name__}).")

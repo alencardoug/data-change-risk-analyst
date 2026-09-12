@@ -15,7 +15,7 @@ No DCRA, um revisor pode aprovar uma mudança apesar de discordar da redação d
 
 O segundo comando lê o `run_id` salvo pelo primeiro e adiciona `lab_total_correto=1`, pois dois itens de R$18 somam R$36. Abra novamente o trace, atualize e encontre o feedback. A origem é API/código, com comentário explicando o critério. Não é uma pessoa revisando o caso.
 
-O exemplo usa `Client.create_feedback(run_id, key=..., score=..., comment=...)`. A documentação de [avaliação](https://docs.langchain.com/langsmith/evaluation-concepts) descreve feedback como a saída pontuada/categorizada do avaliador. A operação também está na referência do SDK instalado, conferida no capítulo 27.
+O exemplo usa `Client.create_feedback(run_id, key=..., score=..., comment=..., session_id=..., start_time=...)`. O `session_id` é o UUID do projeto que contém o run — obtido com `client.read_project(project_name=...)` — e passou a ser obrigatório na [migração para o SmithDB](https://docs.langchain.com/langsmith/smithdb-sdk-migration): o servidor localiza o run pela partição (projeto, hora de início), não por uma busca pelo id. É por isso que o lab 01 grava o projeto e o `start_time` ao lado do `run_id`. A documentação de [avaliação](https://docs.langchain.com/langsmith/evaluation-concepts) descreve feedback como a saída pontuada/categorizada do avaliador. A operação também está na referência do SDK instalado, conferida no capítulo 27.
 
 ## Experimento B — uma anotação humana com rubrica
 

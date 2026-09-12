@@ -33,7 +33,7 @@ Os tempos variam e spans internos de SDK podem mudar. Os nomes escolhidos por n�
 4. Volte à raiz. Seu output é `{total_reais: 36, moeda: BRL}`. Esse contrato é o que a próxima etapa consumiria.
 5. Abra metadata/tags. Procure `environment=lab`, `synthetic=true`, `scenario=pedido-valido` e o marcador do laboratório.
 
-Agora ache os mesmos nomes no código. Os decoradores `@traceable` instrumentam funções; `_common.traced_call` instrumenta a operação superior e associa um UUID à execução. O SDK consegue representar uma hierarquia porque as chamadas filhas ocorrem no contexto da raiz. A API de instrumentação manual é documentada em [Custom instrumentation](https://docs.langchain.com/langsmith/annotate-code).
+Agora ache os mesmos nomes no código. Os decoradores `@traceable` instrumentam funções; o bloco `with trace("pedido-restaurante", inputs=...) as run:` abre o run raiz e `run.end(outputs=...)` o fecha com a saída. O SDK consegue representar uma hierarquia porque as chamadas filhas ocorrem no contexto da raiz. A URL impressa vem de `_common.show_trace`, que pede ao servidor o endereço do run (`client.runs.get_url`) em vez de montá-lo à mão — e o script grava, com o `run_id`, o projeto e o `start_time`: no LangSmith atual um run é localizado por esse trio, não só pelo id. A API de instrumentação manual é documentada em [Custom instrumentation](https://docs.langchain.com/langsmith/annotate-code).
 
 ## Três conclusões que valem mais que o screenshot
 

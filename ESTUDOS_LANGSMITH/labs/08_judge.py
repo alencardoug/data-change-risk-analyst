@@ -2,7 +2,17 @@
 
 import json
 
-from _common import COURSE, configure, manifest, parser, real_model, require_real, session, write_json
+from _common import (
+    COURSE,
+    configure,
+    manifest,
+    parser,
+    real_model,
+    require_real,
+    session,
+    show_trace,
+    write_json,
+)
 from pydantic import BaseModel
 
 RUBRIC = (
@@ -145,7 +155,7 @@ def main():
     require_real(args)
     rows = []
     with session(args, lab="08-juiz") as client:
-        from _common import traced_call
+        from langsmith import trace
 
         model = real_model().with_structured_output(Verdict)
 
@@ -154,13 +164,17 @@ def main():
             return Verdict.model_validate(result).model_dump()
 
         for case in cases[:args.limit]:
+            inputs = {"evidence": case["evidence"], "candidate": case["candidate"]}
             try:
-                output, _ = traced_call(client, args.project, "juiz-recomendacao", judge,
-                                         {"evidence": case["evidence"], "candidate": case["candidate"]},
-                                         metadata={"purpose": "evaluator", "rubric_version": "v1"})
+                with trace("juiz-recomendacao", inputs=inputs,
+                           metadata={"purpose": "evaluator", "rubric_version": "v1"}) as run:
+                    output = judge(inputs)
+                    run.end(outputs=output)
                 rows.append(row(case, output))
             except Exception as exc:
                 rows.append(failed_row(case, type(exc).__name__))
+            if client:
+                show_trace(client, args.project, str(run.id), start_time=run.start_time)
     result = {"judge": "modelo-real", "mode": "real", "rubric_version": "v1",
               **summarize(rows, cases), "manifest": manifest()}
     report(result)

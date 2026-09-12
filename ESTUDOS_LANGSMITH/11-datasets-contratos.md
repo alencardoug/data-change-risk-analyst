@@ -46,7 +46,7 @@ O primeiro comando mostra o formato. O segundo cria/reutiliza um dataset `dcra-e
 
 O nome incorpora hash do conteúdo do arquivo; IDs por caso são estáveis para essa versão. Rerodar o comando não cria cópias duplicadas dos mesmos casos. O script confere exemplos existentes e recusa misturar conteúdo remoto alterado ou casos extras.
 
-O snapshot remoto é registrado em `artefatos/05-dataset.json`, no campo `as_of`. Os experimentos usam a mesma referência temporal para comparar versões. A plataforma mantém versões de datasets; você também pode usar tags e consultas `list_examples(as_of=...)`. [Gerenciamento programático de datasets](https://docs.langchain.com/langsmith/manage-datasets-programmatically).
+O snapshot remoto é registrado em `artefatos/05-dataset.json`, no campo `as_of`, lido de `read_dataset_version(dataset_id=..., tag="latest")` — o SDK exige dizer qual versão se quer, por tag ou por instante. Os experimentos usam a mesma referência temporal para comparar versões. A plataforma mantém versões de datasets; você também pode usar tags e consultas `list_examples(as_of=...)`. [Gerenciamento programático de datasets](https://docs.langchain.com/langsmith/manage-datasets-programmatically).
 
 ## Slice não é necessariamente conjunto de validação
 

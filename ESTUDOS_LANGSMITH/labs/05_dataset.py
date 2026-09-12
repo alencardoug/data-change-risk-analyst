@@ -35,7 +35,8 @@ def publish_dataset(client, cases: list[dict], *, data_path=None,
     missing = [item for item in examples if item["id"] not in existing]
     if missing:
         client.create_examples(dataset_id=ds.id, examples=missing)
-    dataset_version = client.read_dataset_version(dataset_id=ds.id)
+    # A versão "latest" vira o carimbo `as_of` que fixa o snapshot usado pelos experimentos.
+    dataset_version = client.read_dataset_version(dataset_id=ds.id, tag="latest")
     info = {"dataset_name": name, "dataset_id": str(ds.id), "source_sha256": fingerprint,
             "as_of": dataset_version.as_of.isoformat(), "examples": len(examples)}
     write_json(artifact, info)

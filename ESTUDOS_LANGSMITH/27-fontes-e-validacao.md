@@ -34,12 +34,12 @@ As fontes descrevem capacidades das ferramentas. A interpretação didática e o
 
 ## Ambiente local conferido
 
-As versões abaixo foram lidas do ambiente instalado, sem atualizar dependências:
+As versões abaixo foram lidas do ambiente instalado. Só uma dependência foi atualizada, em 12 de setembro de 2026: `langsmith` 0.11.1 → 0.12.4 (`uv lock --upgrade-package langsmith`; o `uv.lock` não é versionado e `pyproject.toml` já aceitava a versão), pelo motivo registrado na seção sobre a API v2 abaixo.
 
 | Componente | Versão |
 |---|---|
 | Python | 3.13.14 |
-| `langsmith` | 0.11.1 |
+| `langsmith` | 0.12.4 |
 | `langchain` | 1.3.18 |
 | `langgraph` | 1.2.11 |
 | `langchain-core` | 1.6.1 |
@@ -59,18 +59,18 @@ Foi verificada por introspecção a presença dos métodos e parâmetros utiliza
 
 | Superfície | Uso no material | Nível de verificação |
 |---|---|---|
-| `traceable`, `tracing_context` | Instrumentação, metadados, hierarquia e modo local | Execução local e testes que inspecionam runs em memória |
-| `Client.create_examples`, `list_examples(as_of=...)`, `read_dataset_version` | Criar casos e fixar a versão do dataset | Assinaturas locais e documentação; sem publicação remota |
-| `Client.evaluate` | Avaliadores, `summary_evaluators`, `max_concurrency`, `num_repetitions` | Assinatura local; adaptação de `reference_outputs` e do avaliador de resumo testada sem rede |
-| `Client.create_feedback` | Nota de código ligada ao run | Assinatura local, incluindo `feedback_source_type`; sem envio |
+| `traceable`, `trace(...)`, `tracing_context` | Instrumentação, run raiz com `run.end(outputs=...)`, metadados, hierarquia e modo local | Execução local e testes que inspecionam runs em memória; `--send` executado nos labs 01, 02, 03, 09, 10, 11 e 14 em 12 de setembro de 2026 |
+| `Client.create_examples`, `list_examples(as_of=...)`, `read_dataset_version(tag="latest")` | Criar casos e fixar a versão do dataset | Executado com `--send` em 12 de setembro de 2026 (0.12.4 exige `tag` ou `as_of`; a chamada sem os dois, aceita na 0.11.1, passou a lançar `ValueError`) |
+| `Client.evaluate` | Avaliadores, `summary_evaluators`, `max_concurrency`, `num_repetitions` | Adaptação de `reference_outputs` e do avaliador de resumo testada sem rede; experimento `dcra-baseline` publicado em 12 de setembro de 2026 sem avisos do SDK |
+| `Client.create_feedback(..., session_id=..., trace_id=..., start_time=...)` | Nota de código ligada ao run, endereçado pela partição do SmithDB | Executado com `--send` em 12 de setembro de 2026; sem `session_id` o SDK avisa (`LangSmithWarning`) e, em backends só-SmithDB, recusa |
 | `Client.push_prompt`, `pull_prompt`, `pull_prompt_commit` | Publicação privada e recuperação por commit | Assinaturas locais, incluindo `skip_cache`; renderização dos prompts testada localmente |
-| `Client.flush(timeout=...)`, `get_run_url` | Finalização e URL do trace | Assinaturas locais; sem ingestão nem obtenção de URL autenticada |
-| `Client.list_runs(filter=..., is_root=..., error=...)` | Agregação de runs no lab 16 | Assinatura e sintaxe de filtro lidas na docstring instalada; consulta remota não executada |
+| `Client.flush(timeout=...)`, `Client.read_project`, `Client.runs.get_url(run_id, project_id=..., trace_id=..., start_time=...)` | Finalização e URL autenticada do trace (API v2, assíncrona, via `asyncio.run`) | Executado com `--send`; a URL devolvida pelo servidor tem o formato `/trace/<trace_id>/run/<run_id>?start_time=...`, distinto do que o SDK monta localmente |
+| `Client.aread_project`, `Client.runs.query(project_ids=..., min_start_time=..., selects=[...], page_size=...)` | Agregação de runs no lab 16 | Executado com `--send` sobre `dcra-estudos` em 12 de setembro de 2026; paginação automática do `async for` conferida com página menor que o total |
 | `RunTree.set(usage_metadata=...)` | Uso e custo sintéticos | Parâmetro presente; contabilidade testada localmente; sem renderização na UI |
 | Processadores de inputs/outputs | Redação dos campos registrados | Teste local compara trace processado com retorno original da função |
 | Langfuse `start_as_current_observation`, `flush` | Lab opcional de outra ferramenta | Conferência na documentação oficial; modo remoto não executado |
 | `@pytest.mark.langsmith`, `langsmith.testing.log_*` | Suíte `evals/` | Código do decorador lido no SDK: a decisão de rastrear é tomada na importação do módulo, por `LANGSMITH_TEST_TRACKING`; modo local executado 3× em teste, sem rede; modo remoto não executado |
-| `Client.list_feedback(run_ids=...)`, `list_runs(filter=..., limit=...)` | Lab 17, modo `--send` | Assinaturas locais; filtro, teto (`max + 1`) e normalização testados com cliente falso; consulta remota não executada |
+| `Client.list_feedback(run_ids=...)`, `Client.runs.query(..., min_start_time=..., max_start_time=..., selects=...)` | Lab 17, modo `--send` | Executado em 12 de setembro de 2026 (9 runs, 3 feedbacks); teto (`max + 1`), seleção de campos e normalização de `parent_run_ids`/`status` testados com cliente falso na forma da API v2 |
 | `psycopg.connect(...)` com `read_only = True`, JSONB (`->-1`, `->>`, `@>`), `percentile_cont` | Lab 18 | Executado contra um Postgres 16 local (`docker compose`) com 28 registros de desenvolvimento e 3 inseridos pelo teste; produção (Neon) não consultada |
 
 ## Validação executada
@@ -115,25 +115,36 @@ uv run ruff check src tests ESTUDOS_LANGSMITH
 
 Na sessão de validação também foram definidos `UV_OFFLINE=1`, `UV_FROZEN=1` e um cache em `/tmp`, usando o ambiente já instalado. A segunda linha acima deve rodar em um ambiente que permita o subprocesso MCP. Esses comandos não solicitam os testes de banco ou modelo real.
 
-## Métodos marcados como obsoletos no SDK instalado
+## Migração para a API v2 do SDK (SmithDB)
 
-A introspecção do `langsmith` 0.11.1 encontrou avisos de depreciação em três métodos usados pelo curso. Eles funcionam hoje; a remoção anunciada é **depois de 31 de janeiro de 2027**.
+Em 11 de setembro de 2026 a UI do LangSmith passou a exibir **Legacy API usage detected** para os labs. A introspecção do `langsmith` 0.11.1 confirmou a causa: `Client.read_run`, `get_run_url`, `list_runs` (entre outros, como `read_thread`, `share_run`, `evaluate_run` e `get_experiment_results`) estão marcados como *deprecated*, com remoção anunciada para **depois de 31 de janeiro de 2027**, e `create_feedback` sem `session_id` emite `LangSmithWarning`. O [guia oficial de migração](https://docs.langchain.com/langsmith/smithdb-sdk-migration) descreve o motivo — o novo banco de observabilidade, SmithDB, localiza cada run pela partição (projeto, `start_time`) — e os substitutos, todos assíncronos: `client.runs.retrieve`, `client.runs.get_url`, `client.runs.query`, `client.traces.list_runs`.
 
-| Método usado | Onde | Substituto indicado pelo SDK |
+O material foi migrado em 12 de setembro de 2026. O que mudou e por quê:
+
+| Antes | Depois | Onde |
 |---|---|---|
-| `Client.read_run` | [_common.py](labs/_common.py), ao imprimir a URL do trace | `Client.runs.retrieve` |
-| `Client.get_run_url` | [_common.py](labs/_common.py), mesma função | `Client.runs.get_url` |
-| `Client.list_runs` | [16_consultar_runs.py](labs/16_consultar_runs.py), modo `--send` | `Client.runs.query` |
+| `traceable(fn)(..., langsmith_extra={"run_id": ...})` + `read_run` + `get_run_url` | `with trace(nome, inputs=...) as run: ... run.end(outputs=...)` e `client.runs.get_url(run_id, project_id=..., trace_id=..., start_time=...)` | [_common.py](labs/_common.py) `show_trace`; labs 01, 03, 08, 09, 10, 11, 14 |
+| `create_feedback(run_id, ...)` | `create_feedback(run_id, ..., session_id=projeto.id, trace_id=run_id, start_time=...)`; o lab 01 grava projeto e `start_time` ao lado do `run_id` | [01_trace_python.py](labs/01_trace_python.py), [04_feedback.py](labs/04_feedback.py) |
+| `list_runs(project_name=..., start_time=..., limit=500)` | `aread_project` + `runs.query(project_ids=[...], min_start_time=..., selects=[...])`, com teto explícito (`--max`) que recusa amostras truncadas | [16_consultar_runs.py](labs/16_consultar_runs.py) |
+| `list_runs(project_name=..., filter='and(gte(start_time,…), lt(start_time,…))', limit=max+1)` | `runs.query(project_ids=[...], min_start_time=..., max_start_time=..., selects=...)`; `inputs`/`outputs` só entram em `selects` com `--conteudo` | [17_exportar_runs.py](labs/17_exportar_runs.py) |
+| `read_dataset_version(dataset_id=...)` | `read_dataset_version(dataset_id=..., tag="latest")` | [05_dataset.py](labs/05_dataset.py) |
 
-O material permanece no caminho antigo de forma deliberada: o namespace `Client.runs` é assíncrono e sua primeira leitura chama `_check_backend_version`, exigindo backend `0.16` ou superior em instalação própria. Trocar agora acrescentaria plumbing assíncrono e uma dependência de versão sem ganho didático. Essa é a decisão registrada, não um descuido; o [capítulo 22](22-operacao-slos-incidentes.md) a explica ao aluno. Reveja-a antes de reaproveitar o código em algo que precise durar até 2027.
+Duas descobertas que só a execução revelou, e que valem como aviso para quem repetir a migração em outro projeto:
+
+- **Na 0.11.1 a API v2 não funcionava neste ambiente.** Todo `client.runs.*` — e o caminho remoto de `RunTree.get_url()` — falhava com `APIConnectionError`, causado por `TypeError: 'Timeout' object cannot be interpreted as an integer`: o SDK montava o timeout com a biblioteca `httpx` e o entregava ao cliente gerado, que prefere `httpx2` quando ela está instalada (é dependência do pacote `openai`). O `RunTree.get_url()` mascarava a falha caindo na URL montada localmente. A 0.12.0 unificou a biblioteca HTTP e a 0.12.4 executa as chamadas v2 sem erro; por isso a atualização, e por isso o [00_doctor.py](labs/00_doctor.py) avisa quando a versão é menor.
+- **`runs.query` sem `min_start_time` assume um dia.** O padrão antigo devolvia tudo. Um relatório "do mês" escrito sem a janela explícita passaria a contar só o último dia — e o número continuaria parecendo plausível.
+
+O que continua no caminho antigo por decisão, não por esquecimento: `Client.list_feedback`, `read_project`, `read_dataset`, `create_examples`, `list_examples`, `push_prompt`/`pull_prompt` e `Client.evaluate` não estão marcados como obsoletos na 0.12.4; `evaluate` já escolhe internamente o backend de consulta. O `LangChainTracer` do `langchain-core` 1.6.1 ainda chama `client.get_run_url` no seu método `get_run_url`, o que é mais um motivo para o lab 02 pedir a URL pelo `run_id` da raiz em vez de usar o tracer.
 
 ## O que ficou sem execução remota
 
 Nesta conferência, não foram executados envios de traces, feedback, datasets, experimentos ou prompts ao LangSmith; chamadas de modelo real dos labs 02/07/08; juízes online, filas de anotação e ações na UI; nem envio ao Langfuse ou um pipeline OpenTelemetry entre serviços.
 
-A revisão de 11 de setembro de 2026 acrescenta cinco itens do mesmo tipo: no capítulo 29, `gcloud logging read` não foi executado, nenhuma análise foi submetida ao app publicado (logo o projeto `dcra-prod` ainda não recebeu traces) e o banco de produção não foi consultado — já `create-secrets.sh` e `deploy.sh` **foram** executados nesse dia, com a revisão `dcra-00002-kcv` servindo 100% do tráfego e a configuração de tracing conferida no serviço; o modo remoto da suíte `evals/` (`DCRA_EVALS_REMOTE=1`), que criaria o dataset `dcra-evals-contratos` e um experimento por variante; o modo `--send` do lab 17, incluindo `list_feedback`; o exercício do painel nativo do capítulo 22, que não teve gráfico criado nem valor comparado; e o bulk export, que depende de plano. Todos estão escritos como procedimento, com a evidência a cargo de quem executar.
+A revisão de 11 de setembro de 2026 acrescenta cinco itens do mesmo tipo: no capítulo 29, `gcloud logging read` não foi executado, nenhuma análise foi submetida ao app publicado (logo o projeto `dcra-prod` ainda não recebeu traces) e o banco de produção não foi consultado — já `create-secrets.sh` e `deploy.sh` **foram** executados nesse dia, com a revisão `dcra-00002-kcv` servindo 100% do tráfego e a configuração de tracing conferida no serviço; o modo remoto da suíte `evals/` (`DCRA_EVALS_REMOTE=1`), que criaria o dataset `dcra-evals-contratos` e um experimento por variante; o modo `--send` do lab 17, incluindo `list_feedback` (executado no dia seguinte; ver abaixo); o exercício do painel nativo do capítulo 22, que não teve gráfico criado nem valor comparado; e o bulk export, que depende de plano. Todos estão escritos como procedimento, com a evidência a cargo de quem executar.
 
 Acrescentam-se, na revisão de 10 de setembro de 2026, dois itens do mesmo tipo. O `summary_evaluators` do lab 06 teve a forma da função validada contra o normalizador do SDK em teste local, mas **nenhum experimento remoto foi publicado**: não há confirmação visual de como `high_risk_recall` aparece na comparação da UI. E o modo `--send` do lab 16 **não foi executado**: a assinatura e a sintaxe do filtro vêm da docstring instalada, e o modo local, esse sim verificado, não depende dela. Trate ambos como o lab 15 do Langfuse — o caminho está escrito, a confirmação é sua.
+
+Em 12 de setembro de 2026 foram executados, com o SDK 0.12.4 e avisos de depreciação tratados como erro, os modos `--send` dos labs 01, 02 (`--review approve`), 03, 04, 05, 06 (`--variant baseline`), 09, 10, 11, 13, 14, 16 e 17. Continuam sem execução remota: 07 e 08 com `--real`, o modo remoto da suíte `evals/` e o Langfuse. Os artefatos correspondentes (`01-trace.json`, `05-dataset.json`, `16-consultas.json`, `17-export/langsmith-*`) ficam em `artefatos/`, fora do Git.
 
 Consequentemente, o curso não fornece URLs privadas inventadas, notas de juiz presumidas, autenticação supostamente aprovada ou custos reais medidos. Os comandos dessas etapas estão nos capítulos correspondentes para execução na conta do aluno. Ao realizá-las, registre resultados e limitações no [caderno de evidências](28-caderno-de-evidencias.md).
 

@@ -3,8 +3,8 @@
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import Context, ContextVar, copy_context
 
-from _common import parser, session, traced_call, write_json
-from langsmith import traceable
+from _common import parser, session, show_trace, write_json
+from langsmith import trace, traceable
 
 CASE = ContextVar("lab_case", default="sem-contexto")
 
@@ -29,9 +29,12 @@ def pipeline(inputs: dict) -> dict:
 def main():
     args = parser(__doc__).parse_args()
     with session(args, lab="14-contexto") as client:
-        output, _ = traced_call(client, args.project, "contexto-threads", pipeline,
-                                {"case_id": "caso-sintetico-42"},
-                                metadata={"thread_id": "caso-sintetico-42"})
+        inputs = {"case_id": "caso-sintetico-42"}
+        with trace("contexto-threads", inputs=inputs, metadata={"thread_id": "caso-sintetico-42"}) as run:
+            output = pipeline(inputs)
+            run.end(outputs=output)
+        if client:
+            show_trace(client, args.project, str(run.id), start_time=run.start_time)
         print(output)
         write_json("14-contexto.json", output)
 

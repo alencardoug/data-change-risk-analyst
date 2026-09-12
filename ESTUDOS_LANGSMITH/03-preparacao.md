@@ -15,6 +15,8 @@ cd /home/doug/Projetos/ia/ws_datachange
 
 O ambiente já estava presente durante a preparação do curso. O diagnóstico mostra versões, presença de chaves e o arquivo `ESTUDOS_LANGSMITH/artefatos/manifesto.json`. **Não imprime valores das chaves.** “Configurada” significa apenas que encontrou um valor não vazio e sem marcador de exemplo; a autenticação é verificada pelo serviço ao usar um laboratório remoto.
 
+O diagnóstico também avisa se o `langsmith` instalado for anterior a 0.12.4: abaixo disso a API v2 do SDK, usada por todos os modos `--send`, falha ao conectar neste ambiente (o motivo está no [capítulo 27](27-fontes-e-validacao.md)). Nesse caso, `uv lock --upgrade-package langsmith && uv sync` resolve sem tocar no código do produto.
+
 Se estiver em outra máquina sem `.venv`, use o fluxo de instalação do projeto:
 
 ```bash

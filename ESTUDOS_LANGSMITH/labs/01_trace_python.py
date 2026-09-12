@@ -1,7 +1,7 @@
 """Trace de Python puro: raiz + duas etapas, sem LangChain e sem modelo."""
 
-from _common import parser, session, traced_call, write_json
-from langsmith import traceable
+from _common import parser, session, show_trace, write_json
+from langsmith import trace, traceable
 
 
 @traceable(run_type="tool", name="consultar_cardapio")
@@ -21,12 +21,18 @@ def order(inputs: dict) -> dict:
 
 def main():
     args = parser(__doc__).parse_args()
+    inputs = {"item": "risoto-de-dados", "quantidade": 2}
     with session(args, lab="01-python") as client:
-        result, run_id = traced_call(client, args.project, "pedido-restaurante", order,
-                                    {"item": "risoto-de-dados", "quantidade": 2},
-                                    metadata={"scenario": "pedido-valido"})
+        # `trace` abre o run raiz; as funções @traceable chamadas aqui dentro viram filhas dele.
+        with trace("pedido-restaurante", inputs=inputs, metadata={"scenario": "pedido-valido"}) as run:
+            result = order(inputs)
+            run.end(outputs=result)
+        if client:
+            show_trace(client, args.project, str(run.id), start_time=run.start_time)
         print(result)
-        write_json("01-trace.json", {"outputs": result, "run_id": run_id, "sent": args.send})
+        # Endereço completo do run (projeto + start_time + id): o lab 04 precisa dele para anexar feedback.
+        write_json("01-trace.json", {"outputs": result, "run_id": str(run.id), "project": args.project,
+                                     "start_time": run.start_time.isoformat(), "sent": args.send})
 
 
 if __name__ == "__main__":

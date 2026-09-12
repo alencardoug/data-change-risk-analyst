@@ -1,19 +1,23 @@
 """De traces a métricas: denominadores, percentis e tempo próprio, com as consultas equivalentes."""
 
+import asyncio
 import json
 from datetime import UTC, datetime, timedelta
 from math import ceil
 
 from _common import COURSE, parser, session, write_json
 
-# Consultas do SDK instalado; a sintaxe do filtro vem da docstring de Client.list_runs.
+# Consultas do SDK instalado (Client.runs.query, API v2): o projeto vai por UUID e a sintaxe do
+# filtro é a mesma da barra de busca da UI.
 CONSULTAS = {
-    "raízes do projeto": 'list_runs(project_name=..., is_root=True)',
-    "somente falhas": 'list_runs(project_name=..., error=True)',
-    "uma operação": 'list_runs(project_name=..., filter=\'eq(name, "collect_deps")\')',
-    "chamadas de ferramenta": 'list_runs(project_name=..., filter=\'eq(run_type, "tool")\')',
-    "lentas e do tipo chain": 'list_runs(..., filter=\'and(eq(run_type, "chain"), gt(latency, 10))\')',
+    "raízes do projeto": 'runs.query(project_ids=[...], is_root=True)',
+    "somente falhas": 'runs.query(project_ids=[...], has_error=True)',
+    "uma operação": 'runs.query(project_ids=[...], filter=\'eq(name, "collect_deps")\')',
+    "chamadas de ferramenta": 'runs.query(project_ids=[...], filter=\'eq(run_type, "tool")\')',
+    "lentas e do tipo chain": 'runs.query(..., filter=\'and(eq(run_type, "chain"), gt(latency, 10))\')',
 }
+# Campos pedidos ao servidor: sem `selects`, a API v2 devolve só o id.
+CAMPOS = ["ID", "TRACE_ID", "PARENT_RUN_IDS", "NAME", "RUN_TYPE", "START_TIME", "END_TIME", "ERROR"]
 
 
 def ms(row: dict) -> float:
@@ -89,20 +93,26 @@ def analisar(runs: list[dict], operacao: str = "collect_deps") -> dict:
     }
 
 
-def coletar_remoto(client, projeto: str, dias: int) -> list[dict]:
-    """list_runs está DEPRECADO no SDK instalado (ver capítulo 22); migração: Client.runs.query."""
+async def coletar_remoto(client, projeto: str, dias: int, maximo: int) -> list[dict]:
+    """Consulta v2, assíncrona: janela explícita (sem ela, o servidor assume 1 dia) e teto declarado."""
+    projeto_remoto = await client.aread_project(project_name=projeto)
     inicio = datetime.now(UTC) - timedelta(days=dias)
     linhas = []
-    for run in client.list_runs(project_name=projeto, start_time=inicio, limit=500):
+    async for run in client.runs.query(project_ids=[str(projeto_remoto.id)], min_start_time=inicio,
+                                       selects=CAMPOS, page_size=min(maximo, 1000)):
         if run.end_time is None:
             continue
         linhas.append({
-            "trace": str(run.trace_id), "id": str(run.id),
-            "parent": str(run.parent_run_id) if run.parent_run_id else None,
-            "name": run.name, "run_type": run.run_type,
+            "trace": run.trace_id, "id": run.id,
+            # A API v2 traz a cadeia de ancestrais, da raiz ao pai direto; o pai é o último.
+            "parent": run.parent_run_ids[-1] if run.parent_run_ids else None,
+            "name": run.name, "run_type": run.run_type.lower(),
             "start": run.start_time.isoformat(), "end": run.end_time.isoformat(),
             "error": run.error,
         })
+        if len(linhas) > maximo:
+            raise SystemExit(f"Mais de {maximo} runs concluídos em '{projeto}' nos últimos {dias} dia(s). "
+                             "Percentis sobre uma amostra truncada enganam: reduza --dias ou suba --max.")
     return linhas
 
 
@@ -110,10 +120,13 @@ def main():
     p = parser(__doc__)
     p.add_argument("--dias", type=int, default=1, help="Janela consultada no modo --send.")
     p.add_argument("--operacao", default="collect_deps")
+    p.add_argument("--max", type=int, default=500, help="Teto de runs lidos no modo --send.")
     args = p.parse_args()
+    if args.max < 1:
+        raise SystemExit("--max precisa ser pelo menos 1.")
     with session(args, lab="16-consultar") as client:
         if client:
-            runs = coletar_remoto(client, args.project, args.dias)
+            runs = asyncio.run(coletar_remoto(client, args.project, args.dias, args.max))
             if not runs:
                 raise SystemExit(f"Nenhum run concluído em '{args.project}' nos últimos "
                                  f"{args.dias} dia(s). Rode os labs com --send antes.")

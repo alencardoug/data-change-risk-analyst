@@ -273,49 +273,93 @@ def test_export_refuses_to_mix_identities_and_never_writes_past_the_cap(tmp_path
 
 
 class _FakeRun:
-    def __init__(self, id, start, error=None, parent=None):
+    """Forma do `Run` da API v2: ancestrais em `parent_run_ids`, enums em maiúsculas, datas com fuso."""
+
+    def __init__(self, id, start, error=None, parents=(), end=None):
         from datetime import UTC, datetime
 
-        self.id, self.trace_id, self.parent_run_id = id, f"t-{id}", parent
-        self.name, self.run_type, self.error = "dcra-iniciar", "chain", error
-        aware = datetime.fromisoformat(start.replace("Z", "+00:00")).astimezone(UTC)
-        self.start_time = aware.replace(tzinfo=None)  # o SDK pode devolver datetime sem fuso
-        self.end_time, self.status, self.tags = None, "error" if error else "success", ["estudo"]
+        self.id, self.trace_id, self.parent_run_ids = id, f"t-{id}", list(parents)
+        self.name, self.run_type, self.error = "dcra-iniciar", "CHAIN", error
+        self.start_time = datetime.fromisoformat(start.replace("Z", "+00:00")).astimezone(UTC)
+        self.end_time = datetime.fromisoformat(end.replace("Z", "+00:00")).astimezone(UTC) if end else None
+        self.status, self.tags = "ERROR" if error else "SUCCESS", ["estudo"]
         self.total_tokens, self.total_cost = 12, None
         self.inputs, self.outputs = {"text": "drop column x.y"}, {"risk": "LOW"}
 
 
-class _FakeClient:
-    def __init__(self, runs):
-        self.runs, self.calls = runs, []
+class _FakeRuns:
+    def __init__(self, runs, calls):
+        self._runs, self._calls = runs, calls
 
-    def list_runs(self, **kwargs):
-        self.calls.append(kwargs)
-        yield from self.runs[: kwargs["limit"]]
+    def query(self, **kwargs):
+        self._calls.append(kwargs)
+
+        async def pagina():
+            for run in self._runs:
+                yield run
+
+        return pagina()
+
+
+class _FakeClient:
+    """Só a superfície v2 usada pelos labs: `aread_project` e `runs.query` assíncronos, feedback síncrono."""
+
+    def __init__(self, runs):
+        self.calls = []
+        self.runs = _FakeRuns(runs, self.calls)
+
+    async def aread_project(self, *, project_name):
+        from types import SimpleNamespace
+
+        return SimpleNamespace(id="00000000-0000-0000-0000-00000000c0de", name=project_name)
 
     def list_feedback(self, run_ids):
         return []
 
 
 def test_remote_export_sends_both_bounds_to_the_server_and_detects_excess(tmp_path):
+    import asyncio
+
     mod = importlib.import_module("17_exportar_runs")
     desde, ate = mod.instante("2026-09-01T00:00:00Z"), mod.instante("2026-09-02T00:00:00Z")
     client = _FakeClient([_FakeRun("r1", "2026-09-01T10:00:00Z", error="TimeoutError: catalogo x"),
-                          _FakeRun("r2", "2026-09-01T11:00:00Z"), _FakeRun("r3", "2026-09-01T12:00:00Z")])
-    result = mod.exportar(mod.consultar_remoto(client, "dcra-estudos", desde, ate, maximo=2),
-                          desde=desde, ate=ate, destino=tmp_path, maximo=2,
+                          _FakeRun("r2", "2026-09-01T11:00:00Z", parents=["r1"]),
+                          _FakeRun("r3", "2026-09-01T12:00:00Z")])
+    fonte = asyncio.run(mod.consultar_remoto(client, "dcra-estudos", desde, ate, maximo=2))
+    result = mod.exportar(fonte, desde=desde, ate=ate, destino=tmp_path, maximo=2,
                           feedback=mod.feedback_remoto(client))
     call = client.calls[0]
-    assert call["project_name"] == "dcra-estudos" and call["limit"] == 3  # maximo + 1 detecta excesso
-    assert call["filter"] == ('and(gte(start_time, "2026-09-01T00:00:00Z"), '
-                              'lt(start_time, "2026-09-02T00:00:00Z"))')
+    assert call["project_ids"] == ["00000000-0000-0000-0000-00000000c0de"]  # projeto por UUID, não por nome
+    assert call["min_start_time"] == "2026-09-01T00:00:00Z"
+    assert call["max_start_time"] == "2026-09-02T00:00:00Z"
+    assert call["page_size"] == 3 and "INPUTS" not in call["selects"]  # maximo + 1; sem texto livre
     assert result["truncado"] and not (tmp_path / "runs.jsonl").exists()
-    ok = mod.exportar(mod.consultar_remoto(client, "dcra-estudos", desde, ate, maximo=3),
-                      desde=desde, ate=ate, destino=tmp_path, maximo=3, feedback=mod.feedback_remoto(client))
+    fonte = asyncio.run(mod.consultar_remoto(client, "dcra-estudos", desde, ate, maximo=3, conteudo=True))
+    assert "INPUTS" in client.calls[1]["selects"]
+    ok = mod.exportar(fonte, desde=desde, ate=ate, destino=tmp_path, maximo=3,
+                      feedback=mod.feedback_remoto(client))
     assert ok["runs"] == {"novos": 3, "ja_presentes": 0, "fora_da_janela": 0}
     linhas = mod.ler_jsonl(tmp_path / "runs.jsonl")
     assert linhas[0]["error"] == "TimeoutError" and linhas[0]["inputs"] is None
-    assert linhas[0]["start_time"] == "2026-09-01T10:00:00+00:00"  # naive do SDK tratado como UTC
+    assert linhas[0]["start_time"] == "2026-09-01T10:00:00+00:00"
+    assert (linhas[0]["status"], linhas[0]["run_type"]) == ("error", "chain")  # normalizados como o local
+    assert linhas[1]["parent_run_id"] == "r1" and linhas[2]["parent_run_id"] is None  # último ancestral
+
+
+def test_remote_aggregation_reads_the_v2_shape_and_refuses_truncated_samples():
+    import asyncio
+
+    mod = importlib.import_module("16_consultar_runs")
+    runs = [_FakeRun("r1", "2026-09-01T10:00:00Z", end="2026-09-01T10:00:01Z"),
+            _FakeRun("r2", "2026-09-01T10:00:00.2Z", end="2026-09-01T10:00:00.7Z", parents=["r1"]),
+            _FakeRun("r3", "2026-09-01T11:00:00Z")]  # sem end_time: ainda em execução, fica de fora
+    client = _FakeClient(runs)
+    linhas = asyncio.run(mod.coletar_remoto(client, "dcra-estudos", dias=1, maximo=10))
+    assert [(r["id"], r["parent"], r["run_type"]) for r in linhas] == [("r1", None, "chain"),
+                                                                        ("r2", "r1", "chain")]
+    assert "min_start_time" in client.calls[0] and client.calls[0]["selects"] == mod.CAMPOS
+    with pytest.raises(SystemExit):
+        asyncio.run(mod.coletar_remoto(client, "dcra-estudos", dias=1, maximo=1))
 
 
 def test_platform_estimate_bills_ingestion_and_upgrades_as_separate_meters():

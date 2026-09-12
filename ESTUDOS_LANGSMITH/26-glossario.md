@@ -15,7 +15,8 @@ Use como consulta durante os labs. Para cada termo, tente apontar um exemplo con
 | Span | Unidade de operação no vocabulário de tracing | A correspondência conceitual de run em OpenTelemetry |
 | Trace | Conjunto de operações relacionadas de uma execução | Pedido do restaurante com suas chamadas filhas |
 | Root / child run | Operação raiz / operação chamada dentro de outra | `pedido-restaurante` / `calcular_total` |
-| `run_id` / `trace_id` | Identidade da operação / identidade do trace | Um trace reúne vários runs |
+| `run_id` / `trace_id` | Identidade da operação / identidade do trace | Um trace reúne vários runs; na raiz os dois coincidem |
+| Endereço de um run (SmithDB) | Projeto (`session_id`) + `start_time` + `run_id`: a partição em que o servidor guarda o run | `create_feedback` e `runs.get_url` pedem o projeto; sem ele o servidor teria de varrer tudo |
 | Metadata / tags | Campos de contexto / rótulos de agrupamento | `scenario=medium` / `estudo` |
 | Tracing project | Agrupamento de traces | `dcra-estudos` |
 | Workspace | Contexto da conta em que ficam recursos e acessos | Confirmar workspace ao procurar um projeto |

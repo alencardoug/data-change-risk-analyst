@@ -1,10 +1,9 @@
 """Erros e lentidão injetados localmente: não dependem de derrubar serviços."""
 
 import time
-from uuid import uuid4
 
 from _common import parser, session, show_trace, write_json
-from langsmith import traceable
+from langsmith import trace, traceable
 
 
 @traceable(run_type="tool", name="ler_catalogo")
@@ -34,19 +33,19 @@ def main():
     rows = []
     with session(args, lab="03-falhas") as client:
         for mode in ["slow", "retry", "fallback", "crash"]:
-            run_id = str(uuid4())
             start = time.perf_counter()
             try:
-                output = traceable(pipeline, name=f"falha-{mode}")(
-                    {"mode": mode}, langsmith_extra={"run_id": run_id, "metadata": {"scenario": mode}}
-                )
+                # A exceção atravessa o `with`: o run raiz é fechado com o erro e só então chega aqui.
+                with trace(f"falha-{mode}", inputs={"mode": mode}, metadata={"scenario": mode}) as run:
+                    output = pipeline({"mode": mode})
+                    run.end(outputs=output)
             except TimeoutError:
                 output = {"error": "TimeoutError", "expected": True}
             elapsed = round(time.perf_counter() - start, 3)
-            rows.append({"mode": mode, "seconds": elapsed, "outputs": output, "run_id": run_id})
+            rows.append({"mode": mode, "seconds": elapsed, "outputs": output, "run_id": str(run.id)})
             print(mode, output, f"{elapsed}s")
             if client:
-                show_trace(client, args.project, run_id)
+                show_trace(client, args.project, str(run.id), start_time=run.start_time)
     write_json("03-falhas.json", rows)
 
 

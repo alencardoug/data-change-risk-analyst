@@ -67,15 +67,15 @@ O script lê o projeto `dcra-estudos` na janela indicada e calcula as mesmas med
 O laboratório imprime as consultas equivalentes:
 
 ```text
-raízes do projeto      list_runs(project_name=..., is_root=True)
-somente falhas         list_runs(project_name=..., error=True)
-uma operação           list_runs(project_name=..., filter='eq(name, "collect_deps")')
-chamadas de ferramenta list_runs(project_name=..., filter='eq(run_type, "tool")')
+raízes do projeto      runs.query(project_ids=[...], is_root=True)
+somente falhas         runs.query(project_ids=[...], has_error=True)
+uma operação           runs.query(project_ids=[...], filter='eq(name, "collect_deps")')
+chamadas de ferramenta runs.query(project_ids=[...], filter='eq(run_type, "tool")')
 ```
 
 Os filtros usam a linguagem de consulta do LangSmith, com operadores como `eq`, `neq`, `gt`, `and` e `or`. Ela também está na barra de busca da UI: a mesma expressão que filtra a lista de runs na tela pode ir para o SDK. `trace_filter` aplica a condição à raiz do trace e `tree_filter` a qualquer run da árvore — é assim que se pergunta “runs de `interpret` cujo pedido inteiro terminou em erro”. [Sintaxe de consulta de traces](https://docs.langchain.com/langsmith/trace-query-syntax).
 
-**Aviso de versão.** No `langsmith` 0.11.1 deste repositório, `Client.list_runs` está marcado como *deprecated*, com remoção anunciada para depois de 31 de janeiro de 2027 e migração para `Client.runs.query`. O mesmo vale para `Client.read_run` e `Client.get_run_url`, usados por [_common.py](labs/_common.py) para imprimir a URL do trace. O curso continua no caminho antigo de propósito: ele é síncrono e funciona na conta gerenciada, enquanto `Client.runs` é assíncrono e exige backend `0.16` ou superior em instalação própria. Registre a data e verifique a sua versão antes de copiar este código para um projeto que vai durar.
+**A API de consulta mudou — e o lab acompanha.** `Client.runs.query` é o caminho atual do SDK (a API v2, sobre o [SmithDB](https://docs.langchain.com/langsmith/smithdb-sdk-migration)); `Client.list_runs`, `read_run` e `get_run_url` continuam existindo, mas marcados como *deprecated*, com remoção anunciada para depois de 31 de janeiro de 2027 — e a UI acusa o uso com o aviso *Legacy API usage detected*. Quatro diferenças que o [16_consultar_runs.py](labs/16_consultar_runs.py) torna visíveis: o projeto é identificado por UUID (`aread_project` primeiro, depois `project_ids=[...]`), não por nome; os campos devolvidos são só os pedidos em `selects` (sem a lista, vem apenas o id); a janela é explícita, porque sem `min_start_time` o servidor assume **um dia** — um padrão silencioso que muda qualquer denominador; e os métodos v2 são assíncronos, daí o `asyncio.run(...)` num script síncrono. A cadeia de ancestrais chega em `parent_run_ids` (da raiz ao pai direto); o pai é o último elemento. O lab também declara um teto (`--max`) e recusa a amostra quando ele estoura: percentil sobre amostra truncada é um número que parece medida.
 
 ## Laboratório — o painel nativo, na sua conta
 
@@ -178,7 +178,7 @@ Com conta, o mesmo script lê o seu projeto:
 .venv/bin/python ESTUDOS_LANGSMITH/labs/17_exportar_runs.py --send --project dcra-estudos --desde 2026-09-10T00:00:00Z --ate 2026-09-11T00:00:00Z --conteudo
 ```
 
-Uma cópia local é uma cópia a mais para proteger ([19](19-privacidade-amostragem.md)); por isso o padrão é sem texto livre. Os dois limites da janela vão ao servidor pela [linguagem de consulta](https://docs.langchain.com/langsmith/trace-query-syntax) — `and(gte(start_time, "…Z"), lt(start_time, "…Z"))` — e a checagem local continua como verificação; o manifesto guarda o filtro enviado. Como no lab 16, o caminho usa `list_runs`, deprecado no SDK instalado — a decisão está registrada acima. **O modo `--send` não foi executado na validação do material**; o filtro, o teto e a normalização foram testados com um cliente falso.
+Uma cópia local é uma cópia a mais para proteger ([19](19-privacidade-amostragem.md)); por isso o padrão é sem texto livre — e, na API v2, isso começa no servidor: `inputs` e `outputs` só entram em `selects` com `--conteudo`, então o texto livre nem viaja. Os dois limites da janela vão ao servidor como `min_start_time` e `max_start_time`; como o servidor não promete o limite superior aberto, a checagem local (`na_janela`) continua garantindo o intervalo fechado-aberto, e o manifesto guarda os limites enviados. O modo `--send` foi executado em 12 de setembro de 2026 sobre `dcra-estudos` (9 runs, 3 feedbacks, nenhum aviso do SDK); o teto, a seleção de campos e a normalização também estão cobertos por um cliente falso com a forma da API v2.
 
 Isso **não** é o bulk export nativo. Esse recurso, segundo a [documentação consultada](https://docs.langchain.com/langsmith/data-export) em 11 de setembro de 2026, grava Parquet num bucket compatível com S3 e é pago: contas criadas depois de 3 de agosto de 2026 só o têm no plano Enterprise; contas anteriores, em Plus ou Enterprise até 1º de fevereiro de 2027. O plano gratuito (Developer) cobre todo o resto do curso. Se a sua conta permitir, registre destino, job, campos, contagem e a leitura posterior do arquivo; se não permitir, deixe o item como pendente em vez de descrever um job que não rodou.
 

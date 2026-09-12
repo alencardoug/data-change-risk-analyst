@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from decimal import Decimal
 
-from _common import parser, session, traced_call, write_json
+from _common import parser, session, show_trace, write_json
 
 
 def token_cost(input_tokens: int, output_tokens: int, cache_read: int = 0) -> Decimal:
@@ -107,16 +107,14 @@ def main():
     print(result)
     with session(args, lab="09-custo-sintetico") as client:
         if client:
-            from langsmith import traceable
+            from langsmith import trace, traceable
 
             fn = traceable(synthetic_generation, run_type="llm", name="modelo-de-papel",
                            metadata={"ls_provider": "curso-ficticio", "ls_model_name": "modelo-de-papel"})
-
-            def outer(inputs):
-                return fn(inputs)
-
-            traced_call(client, args.project, "custo-ficticio", outer, {"question": "Quanto custaria?"},
-                        metadata={"synthetic_cost": True})
+            question = {"question": "Quanto custaria?"}
+            with trace("custo-ficticio", inputs=question, metadata={"synthetic_cost": True}) as run:
+                run.end(outputs=fn(question))
+            show_trace(client, args.project, str(run.id), start_time=run.start_time)
     write_json("09-custos.json", result)
 
 
