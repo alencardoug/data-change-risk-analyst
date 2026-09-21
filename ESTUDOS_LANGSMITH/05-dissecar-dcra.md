@@ -64,6 +64,144 @@ Também pode abrir a [aplicação publicada](https://analisador-de-risco.web.app
 
 **Exercício oral:** explique por que HIGH não implica “agente vai investigar” e por que LOW não implica “LLM aprovou”.
 
+## Debugging com traces: de `reads_per_day: 90` até `dataset.py`
+
+O passo 4 do Experimento A afirma que o catálogo registra 90 leituras/dia. Esta seção refaz esse caminho ao contrário e sem privilégio: você só tem o trace do caso LOW aberto no LangSmith, não conhece o código e quer descobrir **quem produziu** o número e **por que ele está no trace**. É o exercício de debugging mais comum com observabilidade — o valor está na tela; a origem, não.
+
+### 1. Localizar a primeira aparição no trace
+
+Na árvore do run `dcra-iniciar`, abra cada nó e compare **Input** e **Output**. `reads_per_day` aparece em vários lugares — no input de `assess_risk`, `recommend` e `finalize`, e no output desses também — porque está no estado do grafo e o estado inteiro é passado adiante. O critério para achar o produtor é: **o primeiro nó em que o valor está no Output e não está no Input.** Esse nó é `collect_usage`. Seu output é:
+
+```json
+{
+  "evidence": [
+    {
+      "kind": "DOWNSTREAM_USAGE",
+      "key": "ops_dashboard",
+      "status": "OBTAINED",
+      "source": "usage",
+      "payload": {
+        "consumer": "ops_dashboard",
+        "consumer_type": "dashboard",
+        "last_read_at": "2026-08-27T09:00:00Z",
+        "reads_per_day": 90
+      }
+    }
+  ],
+  "step_log": ["collect_usage: 1 item(s)"]
+}
+```
+
+Anote o que o output entrega de graça além do número: o nome do nó (`collect_usage`), o `kind` (`DOWNSTREAM_USAGE`), o `source` (`"usage"`), a chave (`ops_dashboard`) e o `step_log` **sem** o sufixo `(via MCP)`. Cada um é um termo de busca. Repare também que `collect_usage` não tem filhos: o trace termina no nó. O que aconteceu dentro dele o LangSmith não mostra — daqui em diante a ferramenta é `grep`.
+
+### 2. Do nome do nó à função
+
+```bash
+grep -rn "collect_usage" src
+```
+
+Descarte `streamlit_app.py` (rótulos de UI) e `build.py` (arestas). Sobra [nodes.py:57](../src/dcra/graph/nodes.py):
+
+```python
+def collect_usage(state: GraphState) -> dict:
+    sc = state["structured_change"]
+    col = _target_column(sc)
+    if deps.usage_reader is not None:  # V1: MCP-backed reader (ADR-020)
+        items = deps.usage_reader(sc.target_table, col)
+        via = " (via MCP)"
+    else:
+        items = deps.inspect().downstream_usage(sc.target_table, col)
+        via = ""
+    return {"evidence": items, "step_log": [f"collect_usage{via}: {len(items)} item(s)"]}
+```
+
+Há dois ramos, e o trace já disse qual executou: o `step_log` veio como `collect_usage: 1 item(s)`, sem `(via MCP)`, logo `via == ""` e o caminho foi `deps.inspect().downstream_usage(...)`. Isso é debugging com trace no sentido estrito — uma string que o nó gravou no estado descarta metade das hipóteses antes de abrir o próximo arquivo.
+
+### 3. Da interface à implementação
+
+```bash
+grep -rn "def downstream_usage" src
+```
+
+Três resultados: o `Protocol` em `inspector.py:33`, `DatasetInspector` em `inspector.py:48` e `PostgresInspector` em `warehouse.py:177`. Qual foi instanciado? `deps.inspect()` está em [deps.py](../src/dcra/graph/deps.py):
+
+```python
+def inspect(self) -> Inspector:
+    return self.inspector or DatasetInspector(self.dataset)
+```
+
+`PostgresInspector` só entra quando alguém passa `inspector=`, e `production_deps` só o faz com `DATABASE_URL`. Os metadados do trace dizem que não é esse o caso: `lab: 02-dcra`, `scenario: low`, `model_mode: fixture`, `environment: lab`. Abra [_dcra.py](labs/_dcra.py) → `make_deps`: constrói `GraphDeps(..., dataset=ds)` sem `inspector`. Portanto `DatasetInspector`, que delega para `read_downstream_usage` em [tools.py:81](../src/dcra/evidence/tools.py):
+
+```python
+def read_downstream_usage(dataset: Dataset, table: str, column: str) -> list[EvidenceItem]:
+    key = f"{table}.{column}"
+    if dataset.source_disabled(SOURCE_USAGE):
+        return [_unavailable(EvidenceKind.DOWNSTREAM_USAGE, key, SOURCE_USAGE)]
+    facts = dataset.get(table, column)
+    if facts is None:
+        return []
+    return [
+        EvidenceItem(kind=EvidenceKind.DOWNSTREAM_USAGE, key=u["consumer"],
+                     status=EvidenceStatus.OBTAINED, source=SOURCE_USAGE, payload=u)
+        for u in facts.usage
+    ]
+```
+
+Duas coisas fecham o círculo com o JSON do passo 1. `source=SOURCE_USAGE` explica o `"source": "usage"` (a constante mora em `dataset.py:13`). E `payload=u` explica por que o trace mostra o dicionário **inteiro** do consumidor, com `reads_per_day` no nome original: a função não seleciona campos, copia o registro de uso como veio.
+
+### 4. Da função ao dado
+
+`facts` veio de `dataset.get(table, column)` → `Dataset.columns["orders.customer_id"]` → `default_dataset()` em [dataset.py](../src/dcra/evidence/dataset.py):
+
+```python
+# for ADD_INDEX scenarios (index target column, low blast radius)
+"orders.customer_id": ColumnFacts(
+    data_type="bigint",
+    is_nullable=False,
+    row_estimate=1_800_000,
+    dependencies=[],
+    usage=[
+        {"consumer": "ops_dashboard", "consumer_type": "dashboard",
+         "last_read_at": "2026-08-27T09:00:00Z", "reads_per_day": 90},
+    ],
+),
+```
+
+Linha 107. O 90 é um literal, escrito por quem montou a fixture. Resposta à pergunta original: **o número não foi medido; foi escolhido para ficar abaixo do limiar `_INDEX_CONTENTION_RPD = 100` de [risk.py](../src/dcra/rules/risk.py) e manter o caso LOW.** Se alguém alterasse a fixture para 100, `assess_risk` passaria a emitir `INDEX_BUILD_CONTENTION` e o Experimento A deixaria de ser LOW — sem nenhuma mudança em regra ou grafo.
+
+Existe um atalho: `grep -rn '"reads_per_day": 90' src` ou `grep -rn ops_dashboard src` chega a `dataset.py` em um passo. Ele funciona aqui porque o valor é um literal no repositório. Contra `PostgresInspector` ou o leitor MCP ele não acharia nada, e o caminho longo seria obrigatório — até o ponto em que o código faz a consulta, e daí para o banco. Aprenda o caminho longo; use o atalho quando houver.
+
+### 5. Verificar a hipótese sem o LangSmith
+
+Antes de declarar o caso encerrado, reproduza o output do nó localmente. Se o JSON coincidir com o do trace, a cadeia está confirmada:
+
+```bash
+.venv/bin/python - <<'EOF'
+import json, sys
+sys.path.insert(0, "ESTUDOS_LANGSMITH/labs")
+from _dcra import interpret_fixture, make_deps
+from dcra.graph.nodes import make_nodes
+nodes = make_nodes(make_deps())
+sc = interpret_fixture("add index on orders(customer_id)")
+out = nodes["collect_usage"]({"structured_change": sc})
+print(json.dumps([e.model_dump(mode="json") for e in out["evidence"]], indent=2))
+EOF
+```
+
+Isso chama exatamente o nó que o trace mostrou, com as mesmas dependências do lab, e não envia nada a lugar nenhum.
+
+### 6. Onde o código "manda" isso para o LangSmith
+
+Procure `langsmith` ou `traceable` em `src/dcra`: não há. [config.py](../src/dcra/config.py) só lê o flag `LANGSMITH_TRACING`. Nenhuma linha do produto diz "envie `reads_per_day`". O envio é consequência de três decisões, em três lugares:
+
+**(a) Ligar o tracing — [_common.py](labs/_common.py).** `configure()` define `LANGSMITH_TRACING=true` **apenas** com `--send`, e `session()` abre um `tracing_context(enabled=args.send, client=client, project_name=..., tags=["estudo", lab], metadata={...})`. Sem isso, o mesmo código roda e nada sai da máquina. É daí que vêm os metadados `lab`, `environment` e `synthetic` do trace: foram fixados no contexto, não em cada nó.
+
+**(b) O grafo é um Runnable — [02_dcra.py](labs/02_dcra.py) e [build.py](../src/dcra/graph/build.py).** `build_graph` devolve `g.compile(...)`, um Runnable do LangChain. `graph.with_config(run_name="dcra-iniciar", run_id=root_id, metadata=metadata)` nomeia o run raiz; `compiled.invoke(initial, config=config)` em `run()` executa. Com tracing ligado, o LangChain anexa o callback `LangChainTracer` e o LangGraph reporta cada nó como run filho, com o estado recebido como **Input** e o dicionário retornado como **Output**. Portanto a linha que decide que `reads_per_day` vai para o LangSmith é o `return {"evidence": items, ...}` de `nodes.py:66` — não por conhecer o LangSmith, mas porque é o valor de retorno do nó, e o tracer captura valores de retorno. O `EvidenceItem` é um modelo Pydantic; o SDK o serializa como `model_dump()`, e é assim que o `payload` vira o JSON que você viu.
+
+**(c) O que está no estado viaja — [state.py](../src/dcra/graph/state.py).** `evidence: Annotated[list[EvidenceItem], merge_evidence]`: o reducer concatena e deduplica as evidências dos três coletores. Como o LangGraph passa o estado inteiro ao nó seguinte, `reads_per_day` reaparece nos inputs de `assess_risk`, `recommend` e `finalize`, e no payload de `human_review` (que `review_payload` serializa com `model_dump`). É isso que torna o critério do passo 1 necessário: "está no trace" não significa "foi produzido aqui".
+
+Duas consequências práticas. Primeiro, o trace só tem a granularidade dos nós: `DatasetInspector`, `read_downstream_usage` e `default_dataset` não aparecem porque ninguém os decorou com `@traceable` nem os transformou em Runnable — por isso os passos 3 e 4 precisaram de `grep`. Se quisesse ver `read_downstream_usage` como run filho, o lugar seria um `@traceable` sobre a função ([capítulo 08](08-instrumentacao-contexto.md)); a versão `@tool` em `make_evidence_tools` já aparece como run quando o investigador a chama no modo `--real`. Segundo, o que o nó devolve é o que sai da máquina: `payload=u` copia o registro inteiro. Em fixture é inofensivo; com fonte real, é o ponto onde um campo sensível entraria no trace sem ninguém pedir — tema do [capítulo 19](19-privacidade-amostragem.md).
+
 ## Levar para outros projetos — e onde o seu julgamento decide
 
 O que este capítulo treina é **ir do resultado ao nó e do nó ao código** em três caminhos distintos do mesmo grafo. A plataforma de atendimento tem exatamente essa estrutura, com outros nomes.
