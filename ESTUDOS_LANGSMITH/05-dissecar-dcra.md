@@ -100,6 +100,40 @@ Anote o que o output entrega de graça além do número: o nome do nó (`collect
 grep -rn "collect_usage" src
 ```
 
+Rode na raiz do repositório. É um comando de shell comum, não um trecho de Python:
+
+| Parte | O que faz |
+|---|---|
+| `grep` | Procura linhas de texto que contenham um padrão. |
+| `-r` | *recursive* — desce em todos os subdiretórios. |
+| `-n` | *number* — imprime o número da linha junto com o arquivo (`nodes.py:57:`), o que torna o resultado navegável. |
+| `"collect_usage"` | O padrão, texto literal. As aspas impedem o shell de interpretar algo. |
+| `src` | Onde procurar. Deixa de fora `tests/`, `docs/`, `.venv/` e esta pasta de estudos, que também citam o nome e só poluiriam a saída. |
+
+Cada linha da saída vem no formato `arquivo:linha:conteúdo`. A saída esperada:
+
+```
+src/dcra/app/streamlit_app.py:91:    "collect_usage": "Uso da coleção",
+src/dcra/app/streamlit_app.py:124:    if key.startswith("collect_usage"):
+src/dcra/app/streamlit_app.py:125:        label = "Uso da coleção" + key[len("collect_usage"):]
+src/dcra/graph/build.py:3:US1 scope: interpret -> (fan-out) collect_asset|collect_deps|collect_usage -> ...
+src/dcra/graph/build.py:38:    g.add_edge("interpret", "collect_usage")
+src/dcra/graph/build.py:42:    g.add_edge("collect_usage", "assess_risk")
+src/dcra/graph/build.py:61:    g.add_edge("reassess_gate", "collect_usage")
+src/dcra/graph/deps.py:38:    # Evidence source for collect_asset/collect_deps/collect_usage. ...
+src/dcra/graph/nodes.py:57:    def collect_usage(state: GraphState) -> dict:
+src/dcra/graph/nodes.py:66:        return {"evidence": items, "step_log": [f"collect_usage{via}: ..."]}
+src/dcra/graph/nodes.py:187:        "collect_usage": collect_usage,
+```
+
+**Por que o nome do nó, e não outro termo do trace?** O passo 1 entregou vários candidatos: `collect_usage`, `DOWNSTREAM_USAGE`, `"usage"`, `ops_dashboard`, o texto do `step_log`. O nome do nó é o melhor ponto de partida por três razões:
+
+1. **É o único que o LangGraph garante que aparece literalmente no código.** O nome do nó no trace vem de `g.add_node("collect_usage", ...)` — uma string que alguém digitou em `src`. Já `DOWNSTREAM_USAGE` pode ser um enum grafado de outro jeito, `"usage"` é genérico demais e `ops_dashboard` é **dado**, não código: provavelmente vem de um fixture ou do MCP, e o grep em `src` pode devolver zero.
+2. **É específico o bastante para dar poucos resultados.** Onze linhas em quatro arquivos, três descartáveis à primeira vista. Um termo genérico exige leitura; um termo raro demais devolve zero e você não sabe se errou a grafia ou se ele não existe no código.
+3. **Responde à pergunta certa.** O trace termina no nó; o que você quer é o corpo da função que o nó executa. O nome do nó leva direto a `def collect_usage(...)`. Os outros termos levariam a *consequências* daquele código (o tipo da evidência, a chave retornada) — você chegaria à função de trás para frente.
+
+Regra prática: **do trace, escolha o identificador que é código, não dado.** Nome de nó, função ou classe → grep em `src`. Valores como `ops_dashboard` → grep em fixtures/dados, se chegar a ser preciso.
+
 Descarte `streamlit_app.py` (rótulos de UI) e `build.py` (arestas). Sobra [nodes.py:57](../src/dcra/graph/nodes.py):
 
 ```python
