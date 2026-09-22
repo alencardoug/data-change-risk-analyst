@@ -68,6 +68,40 @@ Também pode abrir a [aplicação publicada](https://analisador-de-risco.web.app
 
 O passo 4 do Experimento A afirma que o catálogo registra 90 leituras/dia. Esta seção refaz esse caminho ao contrário e sem privilégio: você só tem o trace do caso LOW aberto no LangSmith, não conhece o código e quer descobrir **quem produziu** o número e **por que ele está no trace**. É o exercício de debugging mais comum com observabilidade — o valor está na tela; a origem, não.
 
+### O mapa antes da caminhada
+
+O caminho tem cinco saltos. Nenhum exige entender lógica — cada um é só "quem chama isso?" ou "quem foi injetado aqui?". O que o torna opaco é que **o nome muda em cada salto**: as palavras do trace não batem com as do código porque a mesma coisa é renomeada a cada camada.
+
+```mermaid
+flowchart TD
+    T["<b>TRACE</b><br/>nó collect_usage<br/>output: payload.reads_per_day = 90<br/>step_log sem '(via MCP)'"]
+    N["<b>nodes.py:57</b> def collect_usage<br/>deps.inspect().downstream_usage(table, col)"]
+    D["<b>deps.py:43</b> GraphDeps.inspect()<br/>return self.inspector <b>or</b> DatasetInspector(dataset)"]
+    I["<b>inspector.py:48</b> DatasetInspector.downstream_usage<br/>return read_downstream_usage(self._ds, …)"]
+    R["<b>tools.py:81</b> read_downstream_usage<br/>payload=<b>u</b> for u in facts.<b>usage</b>"]
+    F["<b>dataset.py:107</b> default_dataset()<br/>'orders.customer_id' → usage=[{…, 'reads_per_day': 90}]"]
+
+    T -- "① grep 'collect_usage' src<br/>(nome do nó é código)" --> N
+    N -- "② 2 ramos; step_log sem MCP ⇒ deps.inspect()" --> D
+    D -- "③ inspector=None no lab ⇒ DatasetInspector<br/>(grep 'def downstream_usage' dá 3 hits)" --> I
+    I -- "④ só delega" --> R
+    R -- "⑤ payload = dict copiado inteiro de facts.usage<br/>facts = dataset.get(table, column)" --> F
+
+    style T fill:#fde68a,stroke:#b45309
+    style F fill:#bbf7d0,stroke:#15803d
+```
+
+| salto | nome que você vê | vira |
+|---|---|---|
+| nó → método | `collect_usage` | `downstream_usage` |
+| Protocol → implementação | `downstream_usage` | `read_downstream_usage` |
+| função → campo | `payload` | `u` ∈ `facts.usage` |
+| campo → literal | `usage` | `"reads_per_day": 90` |
+
+Só dois saltos exigem decisão, não apenas grep: o **②** (qual ramo do `if` — resolvido pelo `step_log`) e o **③** (qual das três implementações de `downstream_usage` — resolvido por `inspector=None` mais os metadados do trace). O resto é delegação pura.
+
+**O atalho que este capítulo escolhe não usar:** `grep -rn "reads_per_day" src` cai direto em `dataset.py:107` (e em `risk.py:87`, que consome o valor) em um único passo. Funciona porque `reads_per_day` é um literal único no repositório. O caminho longo abaixo existe de propósito — a regra "código, não dado" — porque o atalho falha quando o valor vem de fixture externa, MCP ou banco. Para responder rápido "de onde veio o 90?", o grep pelo nome do campo é legítimo; o caminho longo confirma *por que* aquele literal chegou ao trace.
+
 ### 1. Localizar a primeira aparição no trace
 
 Na árvore do run `dcra-iniciar`, abra cada nó e compare **Input** e **Output**. `reads_per_day` aparece em vários lugares — no input de `assess_risk`, `recommend` e `finalize`, e no output desses também — porque está no estado do grafo e o estado inteiro é passado adiante. O critério para achar o produtor é: **o primeiro nó em que o valor está no Output e não está no Input.** Esse nó é `collect_usage`. Seu output é:
